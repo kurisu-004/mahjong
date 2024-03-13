@@ -28,3 +28,4 @@ paipuxmls/
 *.xml
 *.pkl
 *.model
+/dataset/

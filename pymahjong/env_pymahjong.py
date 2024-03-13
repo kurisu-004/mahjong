@@ -27,7 +27,7 @@ class MahjongEnv(gym.Env):
     RIICHI = 41
     RON = 42
     TSUMO = 43
-    PUSH = 44
+    PUSH = 44 # Restart the game with Kyushukyuhai
 
     PASS_RESPONSE = 45
     PASS_RIICHI = 46
