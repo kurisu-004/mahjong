@@ -129,14 +129,16 @@ class taikyoku(object):
 
 if __name__ == '__main__':
     # 读取文件
-    # path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dataset/Tenhou')
-    # files = os.listdir(path)
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../dataset/Tenhou')
+    files = os.listdir(path)
     # pattern = re.compile(r'(\d{4})_nan_4_kuitan_aka_(.*?).log')
+    pattern_test = re.compile(r'test.log')
     # print(files)
     print(os.path.dirname(os.getcwd()))
-    # for file in files:
-    #     if pattern.match(file):
-    #         file_path = os.path.join(path, file)
-    #         game = taikyoku(file_path)
-    #         game.print_tehai(num=11)
+    for file in files:
+        if pattern_test.match(file):
+            file_path = os.path.join(path, file)
+            game = taikyoku(file_path)
+            # game.print_tehai(num=2)
+            game.print_taikyoku(2)
 
