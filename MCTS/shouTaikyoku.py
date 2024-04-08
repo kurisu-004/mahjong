@@ -65,6 +65,19 @@ discard_dict = {
     'F': '对家弃牌',
     'G': '上家弃牌'
 }
+encode_dict = {
+    'action': {
+
+    },
+
+    'hai': {
+        '1m': 0, '2m': 1, '3m': 2, '4m': 3, '5m': 4, '6m': 5, '7m': 6, '8m': 7, '9m': 8, '0m': 9,
+        '1p': 10, '2p': 11, '3p': 12, '4p': 13, '5p': 14, '6p': 15, '7p': 16, '8p': 17, '9p': 18, '0p': 19,
+        '1s': 20, '2s': 21, '3s': 22, '4s': 23, '5s': 24, '6s': 25, '7s': 26, '8s': 27, '9s': 28, '0s': 29,
+        '1z': 30, '2z': 31, '3z': 32, '4z': 33
+    }
+}
+
 
 class taikyoku(object):
 
@@ -131,23 +144,24 @@ class taikyoku(object):
         hai0 = hai0.split(',')
         integer_hai0 = [int(x) for x in hai0]
         integer_hai0.sort()
-        hand_hai0 = [pai_dict[x] for x in integer_hai0]
+        # hand_hai0 = [pai_dict[x] for x in integer_hai0]
         hai1 = tag.get('hai1')
         hai1 = hai1.split(',')
         integer_hai1 = [int(x) for x in hai1]
         integer_hai1.sort()
-        hand_hai1 = [pai_dict[x] for x in integer_hai1]
+        # hand_hai1 = [pai_dict[x] for x in integer_hai1]
         hai2 = tag.get('hai2')
         hai2 = hai2.split(',')
         integer_hai2 = [int(x) for x in hai2]
         integer_hai2.sort()
-        hand_hai2 = [pai_dict[x] for x in integer_hai2]
+        # hand_hai2 = [pai_dict[x] for x in integer_hai2]
         hai3 = tag.get('hai3')
         hai3 = hai3.split(',')
         integer_hai3 = [int(x) for x in hai3]
         integer_hai3.sort()
-        hand_hai3 = [pai_dict[x] for x in integer_hai3]
-        return hand_hai0, hand_hai1, hand_hai2, hand_hai3
+        # hand_hai3 = [pai_dict[x] for x in integer_hai3]
+        # return hand_hai0, hand_hai1, hand_hai2, hand_hai3
+        return integer_hai0, integer_hai1, integer_hai2, integer_hai3
     
     def _get_seed(self):
         temp = self.info['seed'].strip().split(',')
@@ -256,10 +270,14 @@ class taikyoku(object):
     def print_tehai(self):
         kyoku, honba, kyotaku, dora_indicator = self._get_seed()
         print("局数：", kyoku, "本场：", honba, "供托：", kyotaku, "宝牌指示牌：", dora_indicator)
-        print("自家：", self.info['hai0'])
-        print("下家：", self.info['hai1'])
-        print("对家：", self.info['hai2'])
-        print("上家：", self.info['hai3'])
+        hai0 = [pai_dict[x] for x in self.info['hai0']]
+        hai1 = [pai_dict[x] for x in self.info['hai1']]
+        hai2 = [pai_dict[x] for x in self.info['hai2']]
+        hai3 = [pai_dict[x] for x in self.info['hai3']]
+        print("自家：", hai0)
+        print("下家：", hai1)
+        print("对家：", hai2)
+        print("上家：", hai3)
 
     def _print_kyoku(self, num):
         pattern_draw = re.compile(r'<[TUVW](\d{1,3})/>')
@@ -383,19 +401,75 @@ class taikyoku(object):
                     with open(os.path.join(path, 'dora.csv'), 'a') as f:
                         f.write(self.file + ',' + kyoku_dict[self.info['seed'].strip().split(',')[0]] + ',' + self.info['seed'].strip().split(',')[1] + '\n')
             
-    def encode_kyouku(self) -> np.array:
+    def encode_kyouku(self, log) -> np.array:
 
         # 对所有的牌进行one-hot编码, 37种牌1-9m 0m 1-9p 0p 1-9s 0s 1-7z
+        # 编码字典
+        pattern_draw = re.compile(r'<[TUVW](\d{1,3})/>')
+        pattern_discard = re.compile(r'<[DEFG](\d{1,3})/>')
 
-        tiles_one_hot = np.zeros((4, 34, 37), dtype=np.int8)
+        for tag in log:
+            soup = BeautifulSoup(tag, 'lxml')
+            if soup.find('init'):
+                tehai = self._get_hai(soup.find('init'))
+                self.info['hai0'] = tehai[0]
+                self.info['hai1'] = tehai[1]
+                self.info['hai2'] = tehai[2]
+                self.info['hai3'] = tehai[3]
+                self.info['oya'] = soup.init.get('oya')
+                self.info['ten'] = soup.init.get('ten')
+                self.info['seed'] = soup.init.get('seed')
+                self.print_tehai()
 
-        pass
+            # elif pattern_draw.match(tag):
+            #     match = pattern_draw.match(tag)
+            #     print(draw_dict[tag[1]], pai_dict[int(match.group(1))])
+            # elif pattern_discard.match(tag):
+            #     match = pattern_discard.match(tag)
+            #     print(discard_dict[tag[1]], pai_dict[int(match.group(1))])
+            # elif soup.find('reach'):
+            #     step = soup.find('reach').get('step')
+            #     who = soup.find('reach').get('who')
+            #     if step == '2':
+            #         ten = soup.find('reach').get('ten')
+            #         self.info['ten'] = ten
+            #         print(player_dict[who], "立直成功")
+            #         print("立直后的点数：", ten)
+            #     else:
+            #         print(player_dict[who], "宣布立直")
+            # elif soup.find('dora'):
+            #     print("新宝牌为：", pai_dict[int(soup.dora.get('hai'))])
+
+            # elif soup.find('n'):
+            #     m = soup.find('n').get('m')
+            #     result = self._get_naki(m)
+            #     # print("副露")
+            # elif soup.find('agari'):
+            #     who = soup.agari.get('who')
+            #     fromWho = soup.agari.get('fromwho')
+            #     ten_temp = soup.agari.get('ten')
+            #     ten = ten_temp.strip().split(',')
+            #     sc_temp = soup.agari.get('sc')
+            #     sc = sc_temp.strip().split(',')
+            #     # 将sc中的点数转化为整数
+            #     sc = [int(x) for x in sc]
+
+            #     if who == fromWho:
+            #         print(player_dict[who], "自摸")
+            #     else:
+            #         print(player_dict[who], "荣和", player_dict[fromWho])
+
+        
+
+        return 0
+    
 
 if __name__ == '__main__':
 
     # 验证编码
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../dataset/Tenhou/2011_nan_4_kuitan_aka')
-    files = os.listdir(path)
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../dataset')
+    game = taikyoku(os.path.join(path, 'test.log'))
+    array = game.encode_kyouku(game.log[0])
     
 
 
