@@ -17,7 +17,7 @@ class Action(Enum):
 
 # 定义玩家类
 class Player:
-    def __init__(self, id: int):
+    def __init__(self, id: str):
         self.id = id
         self.tehai: List[str] = []
         self.naki: List[str] = []
@@ -65,5 +65,7 @@ class Player:
     def ron(self, hai: str):
         pass
 
-
+    
+    def print_tehai(self):
+        print("player", self.id, ":", self.tehai)
         

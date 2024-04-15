@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 from components.dict import *
 from typing import List
 from enum import Enum, auto
+from components.player import Player
 
 # 定义场风类
 class Bakaze(Enum):
@@ -11,6 +12,12 @@ class Bakaze(Enum):
     SOUTH = auto()
     WEST = auto()
     NORTH = auto()
+
+# 定义对局结束原因类
+class EndKyoku(Enum):
+    TSUMO = auto()
+    RON = auto()
+    RYUUKYOKU = auto()
 
 # 定义对局信息类
 class Taikyoku_info(object):
@@ -29,6 +36,8 @@ class Taikyoku_info(object):
         self.kyoku: int = 1
         # 本场
         self.honba: int = 0
+        # 场上立直棒的数目
+        self.reach_stick: int = 0
         # 拱托数
         self.kyotaku: int = 0
 
@@ -41,6 +50,37 @@ class Taikyoku_info(object):
         # TODO: 从所有牌中移除dora指示牌和玩家手牌
         pass
 
+    def set_remain_draw(self, remain_draw: int):
+        self.remain_draw = remain_draw
+        pass
+
+    def reach(self):
+        self.reach_num += 1
+        self.reach_stick += 1
+        pass
+
+    def _calc_kyotaku(self):
+        # 拱托数 = 立直棒数*1000 + 本场数*300
+        self.kyotaku = self.reach_stick * 1000 + self.honba * 300
+        pass
+
+    def kyoku_start(self, info: dict):
+
+        # TODO: 传入的info为dict类型，包含局数，本场，供托，宝牌指示牌等信息
+        # 由函数kyoku_end返回一个dict包含每个玩家的点数变化以及下一局的初始化信息
+        pass
+
+    # 对局结束后返回一个dict包含每个玩家的点数变化以及下一局的初始化信息
+    def kyoku_end(self, endType: EndKyoku)->dict:
+        self.kyoku += 1
+        self.honba = 0
+        self.reach_stick = 0
+        self._calc_kyotaku()
+        
+        # TODO: 根据不同的结束原因计算点数变化以及下一局的初始化信息
+        return {
+
+        }
 
 
 class Taikyoku_loader(object):
@@ -48,6 +88,17 @@ class Taikyoku_loader(object):
     def __init__(self, file, doubleRon = False ) -> None:
         self.file = file
         self.data = self._load_file(file) # 存放牌谱数据
+
+        # TODO: 引入Taikyoku_info类，存放对局信息
+        # 引入Player类，存放玩家信息
+        self.taikyoku_info = Taikyoku_info()
+        self.players = {
+            '0': Player('0'),
+            '1': Player('1'),
+            '2': Player('2'),
+            '3': Player('3')
+        } # 玩家id为键，Player类为值
+
 
         # 存放当前对局的信息
         self.info = {
