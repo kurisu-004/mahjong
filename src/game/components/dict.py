@@ -1,3 +1,4 @@
+from enum import Enum, auto
 # 0~135表示136种牌
 pai_dict = {
     # 0~35: 万
@@ -56,6 +57,17 @@ discard_dict = {
     'F': '对家弃牌',
     'G': '上家弃牌'
 }
+draw_discard_dict_int = {
+    'T': 0,
+    'U': 1,
+    'V': 2,
+    'W': 3,
+    'D': 0,
+    'E': 1,
+    'F': 2,
+    'G': 3
+}
+
 color_dict = {
     0: 'm',
     1: 'p',
@@ -92,3 +104,36 @@ encode_dict = {
     },
 
 }
+
+# 定义场风类
+class Bakaze(Enum):
+    EAST = auto()
+    SOUTH = auto()
+    WEST = auto()
+    NORTH = auto()
+
+# 定义对局结束原因类
+class EndKyoku(Enum):
+    TSUMO = auto()
+    RON = auto()
+    RYUUKYOKU = auto()
+
+# 定义动作类
+class Action(Enum):
+    DRAW = auto()
+    DISCARD = auto()
+    CHI = auto()
+    PON = auto()
+    KAN = auto()
+    RON = auto()
+    RICHI = auto()
+    PASS = auto()
+    NONE = auto()
+
+# 定义副露类
+class Naki(Enum):
+    CHI = auto()
+    PON = auto()
+    MINKAN = auto()
+    ANKAN = auto()
+    KAKAN = auto()
