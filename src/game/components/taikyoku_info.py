@@ -17,6 +17,7 @@ class Taikyoku_info(object):
         self.reach_stick: int = 0                       # 场上立直棒的数目
         self.kyotaku: int = 0                           # 拱托数
         self.oya: int = 0                               # 庄家
+        self.record: List[dict] = []                    # 记录
 
     def set_next_kyoku(self):
         pass

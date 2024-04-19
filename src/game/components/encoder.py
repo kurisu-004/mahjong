@@ -1,133 +1,47 @@
-# This file contains the encoder class which is used to encode the game state into a tensor
-
-import re, random
-from bs4 import BeautifulSoup
+# 将天凤的牌谱文件转换为神经网络的输入
 from components.dict import *
 import numpy as np
 from components.Taikyoku_loader import Taikyoku_loader
+from typing import List, Dict
 
 
-class Encoder(Taikyoku_loader):
-    def __init__(self, log) -> None:
-        self.log = log
-        self.info = {}
-        self.dora = []
-        self.player = {
-            
-        }
-        self.tehai = [[], [], [], []]
-        self.naki = [[], [], [], []]
-        self.record = []
-        # print(self.log)
+
+# 定义编码器类
+# 接受一个Taikyoku_loader进行初始化
+class Encoder():
+
+    def _encode_tiles(tiles: List[int]) -> np.ndarray:
+
+        # 前34行代表牌，最后一行代表是否是赤宝牌
+        encoded_tile = np.zeros((35, len(tiles)))
+
+        for index, tile in enumerate(tiles):
+
+            tile_type = tile // 4
+            encoded_tile[tile_type, index] = 1
+            if tile == 16 or tile == 52 or tile == 88:
+                encoded_tile[-1, index] = 1
+
+        return encoded_tile
+    
+    def _encode_actions(actions: List[Dict[str, object]]) -> np.ndarray:
+
+        # 参数:
+        # actions: 一个列表，其中每个元素是一个字典，包含 'player' 和 'Action' 两个键。
+        #          'player' 键对应整数类型，'Action' 键对应 Action 枚举类型
+
+
+        # 每一行代表一种动作，最后一行表示执行动作的玩家
+        encoded_action = np.zeros((len(Action) + 1, len(actions)))
+
+        for index, action in enumerate(actions):
+            encoded_action[action['Action'].value, index] = 1
+            encoded_action[-1, index] = action['player']
+
+        return encoded_action
+    
+    def _encode_public_info() -> np.ndarray:
         pass
 
-    def _encode_public(self)->np.ndarray:
-        pass
-
-    def _encode_dora(self)->np.ndarray:
-        pass
-
-    def _encode_tehai(self)->np.ndarray:
-        pass
-
-    def _encode_record(self)->np.ndarray:
-        pass
-
-    def _update(self, tag:str)->None:
-        pattern_draw = re.compile(r'<([TUVW])(\d{1,3})/>')
-        pattern_discard = re.compile(r'<([DEFG])(\d{1,3})/>')
-
-        # 先找到init标签，获取手牌和场面信息
-        soup = BeautifulSoup(tag, 'lxml')
-        if soup.find('init'):
-            print("init")
-            self.tehai = list(self._get_hai(soup.find('init')))
-            self.info['oya'] = soup.init.get('oya')
-            self.info['ten'] = soup.init.get('ten')
-            self.info['seed'] = soup.init.get('seed')
-            self.dora.append(int(soup.init.get('seed').strip().split(',')[-1]))
-            print(self.dora)
-            print(self.tehai)
-            print(self.info)
-
-        # 抽牌标签
-        elif pattern_draw.match(tag):
-            match = pattern_draw.match(tag)
-            # print('draw')
-            if match.group(1) == 'T':
-                self.tehai[0].append(int(match.group(2)))
-            elif match.group(1) == 'U':
-                self.tehai[1].append(int(match.group(2)))
-            elif match.group(1) == 'V':
-                self.tehai[2].append(int(match.group(2)))
-            elif match.group(1) == 'W':
-                self.tehai[3].append(int(match.group(2)))
-        # 弃牌标签
-        elif pattern_discard.match(tag):
-            match = pattern_discard.match(tag)
-            # print('discard')
-            if match.group(1) == 'D':
-                self.tehai[0].remove(int(match.group(2)))
-            elif match.group(1) == 'E':
-                self.tehai[1].remove(int(match.group(2)))
-            elif match.group(1) == 'F':
-                self.tehai[2].remove(int(match.group(2)))
-            elif match.group(1) == 'G':
-                self.tehai[3].remove(int(match.group(2)))
-        # 副露标签
-        elif soup.find('n'):
-            m = soup.find('n').get('m')
-            who = int(soup.find('n').get('who'))
-            # result反映参与副露的牌
-            result = self._get_naki(m, tehai=self.tehai)
-            self.naki[who].extend(result)
-            temp = [x for x in self.tehai[who] if x not in result]
-            print("附录前的手牌：", self.tehai[who])
-            self.tehai[who] = temp
-            # print("玩家：", player_dict[str(who)])
-            # print("副露后的手牌：", self.tehai[who])
-            # print("副露:", self.naki[who])
-            # print("副露")
-
-        # 立直标签
-        elif soup.find('reach'):
-            step = soup.find('reach').get('step')
-            who = soup.find('reach').get('who')
-            if step == '2':
-                ten = soup.find('reach').get('ten')
-                self.info['ten'] = ten
-                print(player_dict[who], "立直成功")
-                print("立直后的点数：", ten)
-            else:
-                print(player_dict[who], "宣布立直")
-
-        # dora标签
-        elif soup.find('dora'):
-            print("新宝牌为：", pai_dict[int(soup.dora.get('hai'))])
-            self.dora.append(int(soup.dora.get('hai')))
-
-        pass
-
-    def encode(self, ratio = 10)->np.ndarray:
-
-        # 从对局中随机选取一定比例的切片
-        random_num = random.sample(range(1, len(self.log)+1), len(self.log)//ratio)
-        random_num.sort()
-        print(random_num)
-
-        for index, tag in enumerate(self.log):
-
-            # 更新手牌和场面信息
-            self._update(tag)
-
-            # 如果是随机选中的局数，打印手牌
-            if index+1 in random_num:
-                for i in range(4):
-                    temp = self.tehai[i]
-                    temp.sort()
-                    pai = [pai_dict[x] for x in temp]
-                    print(player_dict[str(i)], pai)
-                print("=====================================")
-                continue
-        
+    def encode(exportedInfo: Dict[str, object]) -> np.ndarray:
         pass

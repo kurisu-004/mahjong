@@ -28,28 +28,28 @@ class Player:
         self.tenpai = False
         self.last_action = Action.NONE
 
-    def draw(self, hai: int):
+    def draw(self, hai: int)->Action:
         self.tehai.append(hai)
         self.last_action = Action.DRAW
 
-    def discard(self, hai: int):
+        return self.last_action
+
+    def discard(self, hai: int)->Action:
 
         # 如果手牌中没有这张牌，报错
         if hai not in self.tehai:
             print("手牌中没有这张牌")
             sys.exit()
 
+        self.last_action = Action.DISCARD_tegiri
         # 判断上一个动作是否为摸牌
         if self.last_action == Action.DRAW:
             # 判断这张牌是否是手牌list中的最后一张牌
             if self.tehai[-1] == hai:
                 tsumokiri = True
+                self.last_action = Action.DISCARD_tsumokiri
 
-            else:
-                tsumokiri = False
-
-        else:
-            tsumokiri = False
+        tsumokiri = False
 
         # 将这张牌从手牌中移除
         self.tehai.remove(hai)
@@ -58,12 +58,22 @@ class Player:
         # 将这张牌加入到弃牌list中
         self.sutehai.append({'hai': hai, 'tsumokiri': tsumokiri})
 
-        self.last_action = Action.DISCARD
+        return self.last_action
 
-    def handle_naki(self, hai: str):
+    def reach(self, step: int):
+        if step == 1:
+            action = Action.REACH_declear
+            print("player:", self.id, "action:", action)
+        elif step == 2:
+            action = Action.REACH_success
+
+            self.isReach = True
+            self.point -= 1000
+            print("player:", self.id, "action:", action)
+    def handle_naki(self, hai: int):
         pass
 
-    def ron(self, hai: str):
+    def agari(self, hai: str):
         pass
 
     

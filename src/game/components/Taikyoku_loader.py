@@ -91,9 +91,9 @@ class Taikyoku_loader(object):
             data = data_b.decode('utf-8')
         return data
     
-    def _get_tag(self, data, tag):
-        soup = BeautifulSoup(data, 'lxml')
-        return soup.find_all(tag)
+    # def _get_tag(self, data, tag):
+    #     soup = BeautifulSoup(data, 'lxml')
+    #     return soup.find_all(tag)
     
     # 用正则表达式匹配所有的对局数据，并转化为实际的对局信息并返回
     def _get_kyoku(self, doubleRon):
@@ -252,39 +252,58 @@ class Taikyoku_loader(object):
             self._print_kyoku(num)
         pass
 
+
+    #_handdle_tag仅处理标签，具体的玩家信息和对局信息由自身的函数处理
     def _haddle_tag(self, tag, forward: bool):
         soup = BeautifulSoup(tag, 'lxml')
         pattern_draw = re.compile(r'<([TUVW])(\d{1,3})/>')
         pattern_discard = re.compile(r'<([DEFG])(\d{1,3})/>')
         if forward:
             if pattern_draw.match(tag):
+                # 解析标签
                 match = pattern_draw.match(tag)
-                self.players[draw_discard_dict_int[match.group(1)]].draw(int(match.group(2)))
-                self.taikyoku_info.yama.remove(int(match.group(2)))
+
+                player = draw_discard_dict_int[match.group(1)]
+                tile = int(match.group(2))
+
+                # 更新玩家信息
+                action = self.players[player].draw(tile)
+                self.taikyoku_info.yama.remove(tile)
                 self.taikyoku_info.remain_draw -= 1
-                print("player", draw_discard_dict_int[match.group(1)], "摸牌", pai_dict[int(match.group(2))])
+
+                # 记录
+                self.taikyoku_info.record.append({'player': player, 'action': action, 'tile': tile})
+
+                print("player", player, "action", action, "tile", pai_dict[tile])
 
             elif pattern_discard.match(tag):
                 match = pattern_discard.match(tag)
-                self.players[draw_discard_dict_int[match.group(1)]].discard(int(match.group(2)))
-                print("player", draw_discard_dict_int[match.group(1)], "弃牌", pai_dict[int(match.group(2))])
+
+                player = draw_discard_dict_int[match.group(1)]
+                tile = int(match.group(2))
+                action = self.players[player].discard(tile)
+
+                # 记录
+                self.taikyoku_info.record.append({'player': player, 'action': action, 'tile': tile})
+
+                print("player", player, "action", action, "tile", pai_dict[tile])
 
             elif soup.find('reach'):
-                step = soup.find('reach').get('step')
+                step = int(soup.find('reach').get('step'))
                 who = int(soup.find('reach').get('who'))
-                if step == '2':
-                    ten = soup.find('reach').get('ten')
-                    point = [int(x) for x in ten.strip().split(',')]
-                    self.players[who].point = point[0]*100
-                    self.players[who].isReach = True
-                    print("player", who, "立直成功")
-                else:
-                    print("player", who, "宣布立直")
+
+                action = self.players[who].reach(step)
+
+                # 记录
+                self.taikyoku_info.record.append({'player': who, 'action': action, 'tile': None})
+
 
             elif soup.find('dora'):
                 self.taikyoku_info.append_dora(int(soup.dora.get('hai')))
                 print("新宝牌为：", pai_dict[int(soup.dora.get('hai'))])
 
+
+            # TODO
             elif soup.find('n'):
                 m = soup.find('n').get('m')
                 who = int(soup.find('n').get('who'))
@@ -377,3 +396,20 @@ class Taikyoku_loader(object):
         self.taikyoku_info.print_info()
         for i in range(4):
             self.players[i].print_player()
+
+    # 导出当前状态的信息，用于Encoder的encode函数
+    def export_info(self):
+        info = {
+            'taikyoku_info': {
+                'bakaze': self.taikyoku_info.bakaze,
+                'kyoku': self.taikyoku_info.kyoku,
+                'oya': self.taikyoku_info.oya,
+                'honba': self.taikyoku_info.honba,
+                'reach_stick': self.taikyoku_info.reach_stick,
+                'kyotaku': self.taikyoku_info.kyotaku,
+                'dora': self.taikyoku_info.dora,
+                'remain_draw': self.taikyoku_info.remain_draw
+            },
+            'players': self.players
+        }
+        return info

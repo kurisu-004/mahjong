@@ -120,15 +120,25 @@ class EndKyoku(Enum):
 
 # 定义动作类
 class Action(Enum):
-    DRAW = auto()
-    DISCARD = auto()
-    CHI = auto()
-    PON = auto()
-    KAN = auto()
-    RON = auto()
-    RICHI = auto()
-    PASS = auto()
-    NONE = auto()
+    DRAW = 0               # 摸牌
+    DISCARD_tsumokiri = 1  # 摸切
+    DISCARD_tegiri = 2     # 手切
+    CHI_top = 3            # 吃的牌为顶张
+    CHI_middle = 4         # 吃的牌为中间张
+    CHI_bottom = 5         # 吃的牌为底张
+    PON_fromShimo = 6      # 碰下家的牌
+    PON_fromToimen = 7     # 碰对家的牌
+    PON_fromKami = 8       # 碰上家的牌
+    MINKAN_fromShimo = 9   # 明杠下家的牌
+    MINKAN_fromToimen = 10 # 明杠对家的牌
+    MINKAN_fromKami = 11   # 明杠上家的牌
+    ANKAN = 12             # 暗杠
+    KAKAN = 13             # 加杠
+    REACH_declear = 14     # 立直宣言
+    REACH_success = 15     # 立直成功
+    AGARI = 16             # 和牌
+    PASS = 17              # 过
+    NONE = auto()          # 无动作
 
 # 定义副露类
 class Naki(Enum):
