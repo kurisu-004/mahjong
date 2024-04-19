@@ -70,15 +70,160 @@ class Player:
             self.isReach = True
             self.point -= 1000
             print("player:", self.id, "action:", action)
-    def handle_naki(self, hai: int):
-        pass
+        else:
+            print("立直阶段错误")
+            sys.exit()
 
-    def agari(self, hai: str):
-        pass
+    def handle_naki(self, m):
+        # 转换为16位的2进制数
+        m = bin(int(m))[2:].zfill(16)
+        # print("m=", m)
 
-    
-    def print_tehai(self):
-        print("player", self.id, ":", self.tehai)
+        bit0_1 = m[-2:]
+        bit2 = m[-3]
+        bit3 = m[-4]
+        bit4 = m[-5]
+        bit4_5 = m[-6:-4]
+        bit5_6 = m[-7:-5]
+        bit6_7 = m[-8:-6]
+        bit8_9 = m[-10:-8]
+        bit10_15 = m[:6]
+        bit9_15 = m[:7]
+        bit8_15 = m[:8]
+        bit3_4 = m[-5:-3]
+        bit7_8 = m[-9:-7]
+
+        # bit0~bit1表示来源
+        fromWho = int(bit0_1, 2)
+        # print("来源：", player_dict[str(fromWho)], fromWho)
+
+        # bit2判断是否为吃
+        if bit2 == '1':
+            print("吃")
+            # bit10~bit15表示吃的牌
+            chi = int(bit10_15, 2)
+            # 除以3取整和取余数
+            temp, position = divmod(chi, 3)
+            # 再除以7取整和取余数
+            color, number = divmod(temp, 7)
+            print("吃的牌为：", number_dict[number], color_dict[color], "第", position+1, "张")
+            print("面子编号：", number)
+
+            if position == 0:
+                action_type = Action.CHI_bottom
+            elif position == 1:
+                action_type = Action.CHI_middle
+            else:
+                action_type = Action.CHI_top
+
+            # 根据面子编号和吃的牌的大小确定吃的牌的编号
+            nakihai = 4*position + 36*color + number*4
+
+            # bit4_9两两表示每张牌在同种牌中是第几张
+            # 分别转换为10进制数
+            small = int(bit3_4, 2)
+            middle = int(bit5_6, 2)
+            big = int(bit7_8, 2)
+            
+            # 根据面子花色和编号以及吃的牌的大小确定参与吃的牌的编号
+            temp = color * 36 + number * 4 # 该面子的第一张牌的第一枚的编号
+            m1 = temp + small
+            m2 = temp + 4 + middle
+            m3 = temp + 8 + big
+
+            self.naki.append({'type': Naki.CHI, 'fromWho': fromWho, 'result': [m1, m2, m3], 'nakihai': nakihai})
+            # 从手牌中移除副露的牌
+            temp = [x for x in self.tehai if x not in [m1, m2, m3]]
+            self.tehai = temp
+
+            return nakihai, [m1, m2, m3], action_type
+                
+                
+
+        # bit3判断是否为碰
+        elif bit3 == '1':
+            print("碰")
+            pong = int(bit9_15, 2)
+            pong_type, position = divmod(pong, 3)
+            pong_type = pong_type * 4
+            # print("pong_type:", pong_type)
+            # print("position:" ,position)
+            print("碰的牌为：", pai_dict[pong_type])
+
+            temp = [pong_type, pong_type + 1, pong_type + 2, pong_type + 3]
+
+            print(int(bit5_6, 2))
+            temp.remove(pong_type + int(bit5_6, 2))
+            
+            self.naki.append({'type': Naki.PON, 'fromWho': fromWho, 'result': temp, 'nakihai': pong_type })
+            # 从手牌中移除副露的牌
+            temp_2 = [x for x in self.tehai if x not in temp]
+            self.tehai = temp_2
+
+            if fromWho == 1:
+                return pong_type, temp, Action.PON_fromShimo
+            elif fromWho == 2:
+                return pong_type, temp, Action.PON_fromToimen
+            elif fromWho == 3:
+                return pong_type, temp, Action.PON_fromKami
+            else:
+                print("碰来源错误")
+                sys.exit()
+
+
+        # bit3_5判断是否为杠
+        elif bit3 == '0' and bit4_5 == '00':
+            type = int(bit8_15, 2)
+            # print(type)
+            if fromWho == 0:
+                print("暗杠")
+                print("杠的牌为：", pai_dict[type])
+                # type除以4取余数
+                a = type % 4
+                type = type - a
+
+                self.naki.append({'type': Naki.ANKAN, 'fromWho': fromWho, 'result': [type, type+1, type+2, type+3], 'nakihai': type})
+                # 从手牌中移除副露的牌
+                temp = [x for x in self.tehai if x not in [type, type+1, type+2, type+3]]
+                self.tehai = temp
+
+                return type, [type, type+1, type+2, type+3], Action.ANKAN
+            else:
+                print("明杠，来自", player_dict[str(fromWho)])
+                print("杠的牌为：", pai_dict[type])
+                # type除以4取余数
+                a = type % 4
+                type = type - a
+
+                self.naki.append({'type': Naki.MINKAN, 'fromWho': fromWho, 'result': [type, type+1, type+2, type+3], 'nakihai': type})
+                # 从手牌中移除副露的牌
+                temp = [x for x in self.tehai if x not in [type, type+1, type+2, type+3]]
+                self.tehai = temp
+
+                if fromWho == 1:
+                    return type, [type, type+1, type+2, type+3], Action.MINKAN_fromShimo
+                elif fromWho == 2:
+                    return type, [type, type+1, type+2, type+3], Action.MINKAN_fromToimen
+                elif fromWho == 3:
+                    return type, [type, type+1, type+2, type+3], Action.MINKAN_fromKami
+                else:
+                    print("明杠来源错误")
+                    sys.exit()
+
+        elif bit4 == '1':
+            print("加杠")
+            kakan_position = int(bit5_6, 2)
+            kang = int(bit9_15, 2)
+            kang_type, pong_position = divmod(kang, 3)
+            kang_type = kang_type * 4
+            print("杠的牌为：", pai_dict[kang_type])
+            return kang_type, kang_type + kakan_position, Action.KAKAN
+
+        else:
+            print("未知副露")
+            # 打印出对局文件名称和局数
+            print("对局文件：", self.file, "局数：", self.info['seed'].strip().split(',')[0])
+            sys.exit()
 
     def print_player(self):
         print("player", self.id)
