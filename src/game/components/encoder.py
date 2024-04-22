@@ -79,5 +79,8 @@ class Encoder():
 
         return public_info
 
-    def encode(exportedInfo: Dict[str, object]) -> np.ndarray:
+    def encode(self) -> np.ndarray:
+        # 返回值:
+        # 一个numpy数组，包含了所有的信息
+        
         pass
