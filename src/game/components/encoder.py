@@ -1,7 +1,6 @@
 # 将天凤的牌谱文件转换为神经网络的输入
 from components.dict import *
 import numpy as np
-from components.Taikyoku_loader import Taikyoku_loader
 from typing import List, Dict
 
 
