@@ -107,10 +107,10 @@ encode_dict = {
 
 # 定义场风类
 class Bakaze(Enum):
-    EAST = auto()
-    SOUTH = auto()
-    WEST = auto()
-    NORTH = auto()
+    EAST = 0
+    SOUTH = 1
+    WEST = 2
+    NORTH = 3
 
 # 定义对局结束原因类
 class EndKyoku(Enum):

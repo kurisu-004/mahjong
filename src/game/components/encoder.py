@@ -47,8 +47,37 @@ class Encoder():
 
         return encoded_action
     
-    def _encode_public_info() -> np.ndarray:
-        pass
+    def _encode_public_info(self) -> np.ndarray:
+        # 第一行表示场风：0-东，1-南，2-西，3-北
+        # 第二行表示局数
+        # 第三行表示本场
+        # 第四行庄家
+        # 第五行表示立直棒数
+        # 第六行表示剩余摸牌数
+        # 第7～10行表示立直玩家：0-不是立直玩家，1-是立直玩家
+        # 第11～14行表示各个玩家的点数
+
+        public_info = np.zeros((14, 1))
+        public_info[0, 0] = self.exported_info['taikyoku_info']['bakaze'].value
+        public_info[1, 0] = self.exported_info['taikyoku_info']['kyoku']
+        public_info[2, 0] = self.exported_info['taikyoku_info']['honba']
+        public_info[3, 0] = self.exported_info['taikyoku_info']['oya']
+        public_info[4, 0] = self.exported_info['taikyoku_info']['reach_stick']
+        public_info[5, 0] = self.exported_info['taikyoku_info']['remain_draw']
+        public_info[6:10, 0] = np.array([
+            self.exported_info['player0']['isReach'], 
+            self.exported_info['player1']['isReach'], 
+            self.exported_info['player2']['isReach'], 
+            self.exported_info['player3']['isReach']
+        ])
+        public_info[10:14, 0] = np.array([
+            self.exported_info['player0']['point'], 
+            self.exported_info['player1']['point'], 
+            self.exported_info['player2']['point'], 
+            self.exported_info['player3']['point']
+        ])
+
+        return public_info
 
     def encode(exportedInfo: Dict[str, object]) -> np.ndarray:
         pass
