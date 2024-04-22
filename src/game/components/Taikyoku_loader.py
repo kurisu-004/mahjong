@@ -134,7 +134,7 @@ class Taikyoku_loader(object):
 
 
     #_handdle_tag仅处理标签，具体的玩家信息和对局信息由自身的函数处理
-    def _haddle_tag(self, tag, forward: bool):
+    def _haddle_tag(self, tag, forward: bool, print_info=False):
         soup = BeautifulSoup(tag, 'lxml')
         pattern_draw = re.compile(r'<([TUVW])(\d{1,3})/>')
         pattern_discard = re.compile(r'<([DEFG])(\d{1,3})/>')
@@ -154,7 +154,8 @@ class Taikyoku_loader(object):
                 # 记录
                 self.taikyoku_info.record.append({'player': player, 'action': action, 'tile': tile})
 
-                print("player", player, "action", action, "tile", pai_dict[tile])
+                if print_info:
+                    print("player", player, "action", action, "tile", pai_dict[tile])
 
             elif pattern_discard.match(tag):
                 match = pattern_discard.match(tag)
@@ -166,7 +167,8 @@ class Taikyoku_loader(object):
                 # 记录
                 self.taikyoku_info.record.append({'player': player, 'action': action, 'tile': tile})
 
-                print("player", player, "action", action, "tile", pai_dict[tile])
+                if print_info:
+                    print("player", player, "action", action, "tile", pai_dict[tile])
 
             elif soup.find('reach'):
                 step = int(soup.find('reach').get('step'))
@@ -180,17 +182,22 @@ class Taikyoku_loader(object):
 
             elif soup.find('dora'):
                 self.taikyoku_info.append_dora(int(soup.dora.get('hai')))
-                print("新宝牌为：", pai_dict[int(soup.dora.get('hai'))])
+
+                if print_info:
+                    print("新宝牌为：", pai_dict[int(soup.dora.get('hai'))])
 
             elif soup.find('n'):
                 m = soup.find('n').get('m')
                 who = int(soup.find('n').get('who'))
-                print("player", who, "副露")
 
-                naki_hai, result, action_type= self.players[who].handle_naki(m)
 
-                print("副露牌为：", [pai_dict[x] for x in result])
-                print("副露类型：", action_type)
+
+                naki_hai, result, action_type= self.players[who].handle_naki(m, print_info=print_info)
+
+                if print_info:
+                    print("player", who, "副露")
+                    print("副露牌为：", [pai_dict[x] for x in result])
+                    print("副露类型：", action_type)
 
                 # 记录
                 self.taikyoku_info.record.append({'player': who, 'action': action_type, 'tile': naki_hai})
@@ -203,24 +210,29 @@ class Taikyoku_loader(object):
                 sc_temp = soup.agari.get('sc')
                 sc = sc_temp.strip().split(',')
                 sc = [int(x) for x in sc]
-                print("player", who, "agari", "from player", fromWho)
-                print(sc)
+
+                if print_info:
+                    print("player", who, "agari", "from player", fromWho)
+                    print(sc)
 
                 for i in range(4):
                     self.players[i].point += sc[i*2+1]*100
             
             elif soup.find('ryuukyoku'):
-                print("流局")
-                ryuukyoku_type = soup.ryuukyoku.get('type')
-                if ryuukyoku_type:
-                    print("流局类型：", ryuukyoku_type)
-                pass
+
                 sc_temp = soup.ryuukyoku.get('sc')
                 sc = sc_temp.strip().split(',')
                 sc = [int(x) for x in sc]
-                print(sc)
+
                 for i in range(4):
                     self.players[i].point += sc[i*2+1]*100
+
+                if print_info:
+                    print("流局")
+                    ryuukyoku_type = soup.ryuukyoku.get('type')
+                    if ryuukyoku_type:
+                        print("流局类型：", ryuukyoku_type)
+                    print(sc)
                 
 
         else:
@@ -228,10 +240,11 @@ class Taikyoku_loader(object):
         pass
 
     # 每执行一次step函数，读取一个xml标签，更新玩家信息和对局信息
-    def step_forward(self):
+    def step_forward(self, print_info=False):
         self.current_tag_index += 1
         if self.current_tag_index >= len(self.log[self.current_kyoku_index]):
-            print("对局结束！")
+            if print_info:
+                print("对局结束！")
             if self.current_kyoku_index == len(self.log)-1:
                 # 回到第一局的第一步
                 self.reset(num=1)
@@ -240,7 +253,7 @@ class Taikyoku_loader(object):
             
         else:
             tag = self.log[self.current_kyoku_index][self.current_tag_index]
-            self._haddle_tag(tag, forward=True)
+            self._haddle_tag(tag, forward=True, print_info=print_info)
         pass
 
     # TODO: 后退一步
@@ -290,6 +303,8 @@ class Taikyoku_loader(object):
                 'sutehai': self.players[0].sutehai,
                 'point': self.players[0].point,
                 'isReach': self.players[0].isReach,
+                # TODO: 将来加入听牌类型检测
+                # 'machi': self.players[0].machi
             },
             'player1': {
                 'tehai': self.players[1].tehai,

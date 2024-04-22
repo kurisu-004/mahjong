@@ -9,6 +9,13 @@ from typing import List, Dict
 # 定义编码器类
 # 接受一个Taikyoku_loader进行初始化
 class Encoder():
+    def __init__(self, exported_info: Dict[str, object]) -> None:
+        # 参数:
+        # exported_info: 一个字典，包含 'taikyoku_info' 和 'player0~3' 5个键。
+        # 由Taikyoku_loader的export方法导出的信息
+
+        self.exported_info = exported_info
+        pass
 
     def _encode_tiles(tiles: List[int]) -> np.ndarray:
 

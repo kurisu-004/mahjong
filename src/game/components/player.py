@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Set
 from components.dict import *
 import sys
 
@@ -15,6 +15,7 @@ class Player:
         self.isOya: bool = False
         self.ipatsu: bool = False
         self.tenpai: bool = False
+        # self.machi: Set[str] = set()
         # self.syan_ten: int = 0
         self.last_action: Action = Action.NONE
 
@@ -63,18 +64,18 @@ class Player:
     def reach(self, step: int):
         if step == 1:
             action = Action.REACH_declear
-            print("player:", self.id, "action:", action)
+            # print("player:", self.id, "action:", action)
         elif step == 2:
             action = Action.REACH_success
 
             self.isReach = True
             self.point -= 1000
-            print("player:", self.id, "action:", action)
+            # print("player:", self.id, "action:", action)
         else:
             print("立直阶段错误")
             sys.exit()
 
-    def handle_naki(self, m):
+    def handle_naki(self, m, print_info=False):
         # 转换为16位的2进制数
         m = bin(int(m))[2:].zfill(16)
         # print("m=", m)
@@ -99,15 +100,17 @@ class Player:
 
         # bit2判断是否为吃
         if bit2 == '1':
-            print("吃")
+            
             # bit10~bit15表示吃的牌
             chi = int(bit10_15, 2)
             # 除以3取整和取余数
             temp, position = divmod(chi, 3)
             # 再除以7取整和取余数
             color, number = divmod(temp, 7)
-            print("吃的牌为：", number_dict[number], color_dict[color], "第", position+1, "张")
-            print("面子编号：", number)
+            if print_info:
+                print("吃")
+                print("吃的牌为：", number_dict[number], color_dict[color], "第", position+1, "张")
+                print("面子编号：", number)
 
             if position == 0:
                 action_type = Action.CHI_bottom
@@ -142,13 +145,15 @@ class Player:
 
         # bit3判断是否为碰
         elif bit3 == '1':
-            print("碰")
+            
             pong = int(bit9_15, 2)
             pong_type, position = divmod(pong, 3)
             pong_type = pong_type * 4
             # print("pong_type:", pong_type)
             # print("position:" ,position)
-            print("碰的牌为：", pai_dict[pong_type])
+            if print_info:
+                print("碰")
+                print("碰的牌为：", pai_dict[pong_type])
 
             temp = [pong_type, pong_type + 1, pong_type + 2, pong_type + 3]
 
@@ -176,8 +181,9 @@ class Player:
             type = int(bit8_15, 2)
             # print(type)
             if fromWho == 0:
-                print("暗杠")
-                print("杠的牌为：", pai_dict[type])
+                if print_info:
+                    print("暗杠")
+                    print("杠的牌为：", pai_dict[type])
                 # type除以4取余数
                 a = type % 4
                 type = type - a
@@ -189,8 +195,9 @@ class Player:
 
                 return type, [type, type+1, type+2, type+3], Action.ANKAN
             else:
-                print("明杠，来自", player_dict[str(fromWho)])
-                print("杠的牌为：", pai_dict[type])
+                if print_info:
+                    print("明杠，来自", player_dict[str(fromWho)])
+                    print("杠的牌为：", pai_dict[type])
                 # type除以4取余数
                 a = type % 4
                 type = type - a
@@ -211,12 +218,14 @@ class Player:
                     sys.exit()
 
         elif bit4 == '1':
-            print("加杠")
+
             kakan_position = int(bit5_6, 2)
             kang = int(bit9_15, 2)
             kang_type, pong_position = divmod(kang, 3)
             kang_type = kang_type * 4
-            print("杠的牌为：", pai_dict[kang_type])
+            if print_info:
+                print("加杠")
+                print("杠的牌为：", pai_dict[kang_type])
             return kang_type, kang_type + kakan_position, Action.KAKAN
 
         else:
