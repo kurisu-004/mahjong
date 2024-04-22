@@ -193,7 +193,7 @@ class Taikyoku_loader(object):
 
 
                 naki_hai, result, action_type= self.players[who].handle_naki(m, print_info=print_info)
-
+                print(action_type)
                 if print_info:
                     print("player", who, "副露")
                     print("副露牌为：", [pai_dict[x] for x in result])
@@ -295,7 +295,8 @@ class Taikyoku_loader(object):
                 'reach_stick': self.taikyoku_info.reach_stick,
                 'kyotaku': self.taikyoku_info.kyotaku,
                 'dora': self.taikyoku_info.dora,
-                'remain_draw': self.taikyoku_info.remain_draw
+                'remain_draw': self.taikyoku_info.remain_draw,
+                'record': self.taikyoku_info.record
             },
             'player0': {
                 'tehai': self.players[0].tehai,

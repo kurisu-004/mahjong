@@ -74,6 +74,8 @@ class Player:
         else:
             print("立直阶段错误")
             sys.exit()
+        
+        return action
 
     def handle_naki(self, m, print_info=False):
         # 转换为16位的2进制数

@@ -17,12 +17,14 @@ class Encoder():
         self.exported_info = exported_info
         pass
 
-    def _encode_tiles(tiles: List[int]) -> np.ndarray:
+    def _encode_tiles(self, tiles: List[int]) -> np.ndarray:
 
         # 前34行代表牌，最后一行代表是否是赤宝牌
         encoded_tile = np.zeros((35, len(tiles)))
 
         for index, tile in enumerate(tiles):
+            if tile == None:
+                continue
 
             tile_type = tile // 4
             encoded_tile[tile_type, index] = 1
@@ -31,18 +33,18 @@ class Encoder():
 
         return encoded_tile
     
-    def _encode_actions(actions: List[Dict[str, object]]) -> np.ndarray:
+    def _encode_actions(self, actions: List[Dict[str, object]]) -> np.ndarray:
 
         # 参数:
-        # actions: 一个列表，其中每个元素是一个字典，包含 'player' 和 'Action' 两个键。
-        #          'player' 键对应整数类型，'Action' 键对应 Action 枚举类型
+        # actions: 一个列表，其中每个元素是一个字典，包含 'player' 和 'action' 两个键。
+        #          'player' 键对应整数类型，'action' 键对应 Action 枚举类型
 
 
         # 每一行代表一种动作，最后一行表示执行动作的玩家
         encoded_action = np.zeros((len(Action) + 1, len(actions)))
 
         for index, action in enumerate(actions):
-            encoded_action[action['Action'].value, index] = 1
+            encoded_action[action['action'].value, index] = 1
             encoded_action[-1, index] = action['player']
 
         return encoded_action
@@ -82,5 +84,53 @@ class Encoder():
     def encode(self) -> np.ndarray:
         # 返回值:
         # 一个numpy数组，包含了所有的信息
+
+        # 公共信息public_info
+        public_info = self._encode_public_info()
+
+        # dora表示牌
+        dora_indicators = self._encode_tiles(self.exported_info['taikyoku_info']['dora'])
+
+        # 四个玩家的手牌
+        tehai = []
+        for i in range(4):
+            tehai.append(self._encode_tiles(self.exported_info[f'player{i}']['tehai']))
+
+        # 对局信息
+        actions = []
+        tiles = []
+        for record in self.exported_info['taikyoku_info']['record']:
+            actions.append({'action': record['action'], 'player': record['player']})
+            tiles.append(record['tile'])
+            # print({'action': record['action'], 'player': record['player']}, record['tile'])
+        encoded_record = np.concatenate((self._encode_tiles(tiles), self._encode_actions(actions)), axis=0)
+        # print(encoded_record[:, 0:10])
+
+        # 补齐
+        max_row = encoded_record.shape[0]
+        public_info = self._pad_matrix(public_info, max_row)
+        dora_indicators = self._pad_matrix(dora_indicators, max_row)
+        for i in range(4):
+            tehai[i] = self._pad_matrix(tehai[i], max_row)
         
-        pass
+        # 定义CLS
+        cls = np.ones((max_row, 1))
+        
+        # 拼接
+        encoded_info = np.concatenate((cls, public_info, dora_indicators, tehai[0],tehai[1], tehai[2], tehai[3], encoded_record), axis=1)
+        
+
+        return encoded_info
+
+    def _pad_matrix(self, matrix: np.ndarray, max_row: int) -> np.ndarray:
+        # 参数:
+        # matrix: 一个numpy数组
+        # max_row: 最大行数
+
+        # 返回值:
+        # 一个numpy数组，将matrix填充到max_row行
+
+        if matrix.shape[0] >= max_row:
+            return matrix
+        else:
+            return np.concatenate((matrix, np.zeros((max_row - matrix.shape[0], matrix.shape[1]))), axis=0)
