@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 from components.dict import *
 from components.player import Player
 from components.taikyoku_info import *
+from typing import Dict
 
 
 class Taikyoku_loader(object):
@@ -285,7 +286,7 @@ class Taikyoku_loader(object):
             self.players[i].print_player()
 
     # 导出当前状态的信息，用于Encoder的encode函数
-    def export_info(self):
+    def export_info(self)-> Dict[str, object]:
         info = {
             'taikyoku_info': {
                 'bakaze': self.taikyoku_info.bakaze,

@@ -6,7 +6,7 @@ from typing import List, Dict
 
 
 # 定义编码器类
-# 接受一个Taikyoku_loader进行初始化
+# 接受一个由Taikyoku_loader的export_info函数的返回值进行初始化
 class Encoder():
     def __init__(self, exported_info: Dict[str, object]) -> None:
         # 参数:
