@@ -61,6 +61,10 @@ class Taikyoku_info(object):
         self.kyotaku = self.reach_stick * 1000 + self.honba * 300
         pass
 
+    def reset_record(self):
+        self.record = []
+        pass
+
     
     def print_info(self):
         print("=====================================")

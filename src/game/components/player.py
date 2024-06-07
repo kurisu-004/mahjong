@@ -64,13 +64,11 @@ class Player:
     def reach(self, step: int):
         if step == 1:
             action = Action.REACH_declear
-            # print("player:", self.id, "action:", action)
         elif step == 2:
             action = Action.REACH_success
 
             self.isReach = True
             self.point -= 1000
-            # print("player:", self.id, "action:", action)
         else:
             print("立直阶段错误")
             sys.exit()
@@ -80,7 +78,6 @@ class Player:
     def handle_naki(self, m, print_info=False):
         # 转换为16位的2进制数
         m = bin(int(m))[2:].zfill(16)
-        # print("m=", m)
 
         bit0_1 = m[-2:]
         bit2 = m[-3]
@@ -158,8 +155,6 @@ class Player:
                 print("碰的牌为：", pai_dict[pong_type])
 
             temp = [pong_type, pong_type + 1, pong_type + 2, pong_type + 3]
-
-            print(int(bit5_6, 2))
             temp.remove(pong_type + int(bit5_6, 2))
             
             self.naki.append({'type': Naki.PON, 'fromWho': fromWho, 'result': temp, 'nakihai': pong_type })

@@ -38,7 +38,7 @@ class Taikyoku_loader(object):
         try:
             soup = BeautifulSoup(self.log[num][0], 'lxml')
         except:
-            print("对局不存在！")
+            print("对局不存在！或未安装lxml库！")
             sys.exit()
 
         if soup.find('init'):
@@ -78,6 +78,7 @@ class Taikyoku_loader(object):
             self.taikyoku_info.set_dora(int(seed[-1]))
             self.taikyoku_info.set_yama(tehai)
             self.taikyoku_info.set_remain_draw(70)
+            self.taikyoku_info.reset_record()
 
         
         else:
@@ -194,8 +195,8 @@ class Taikyoku_loader(object):
 
 
                 naki_hai, result, action_type= self.players[who].handle_naki(m, print_info=print_info)
-                print(action_type)
                 if print_info:
+                    print(action_type)
                     print("player", who, "副露")
                     print("副露牌为：", [pai_dict[x] for x in result])
                     print("副露类型：", action_type)
