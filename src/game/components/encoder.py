@@ -25,6 +25,10 @@ class Encoder():
 
             if tile == None:
                 continue
+            
+            # 如果当前牌被mask，则不进行编码
+            if tile == -1:
+                continue
 
             tile_type = tile // 4
             encoded_tile[tile_type, index] = 1
@@ -108,13 +112,19 @@ class Encoder():
             # mask手牌
             if mask_type == 0:
             # 每个玩家随机mask一半的牌           
-                masked_position.append(self._mask_tehai(self.exported_info[f'player{i}']['tehai'], type=0))
+                masked_position.append(
+                    self._encode_tiles(self._mask_tehai(self.exported_info[f'player{i}']['tehai'], type=0))
+                    )
             elif mask_type == 1:
             # mask除了自己的所有牌
                 if i == 0:
-                    masked_position.append(self._mask_tehai(self.exported_info[f'player{i}']['tehai'], type=2))
+                    masked_position.append(
+                        self._encode_tiles(self._mask_tehai(self.exported_info[f'player{i}']['tehai'], type=2))
+                    )
                 else:
-                    masked_position.append(self._mask_tehai(self.exported_info[f'player{i}']['tehai'], type=1))
+                    masked_position.append(
+                        self._encode_tiles(self._mask_tehai(self.exported_info[f'player{i}']['tehai'], type=1))
+                    )
         
         # 对局信息
         actions = []
@@ -133,6 +143,7 @@ class Encoder():
         for i in range(4):
             tehai[i] = self._pad_matrix(tehai[i], max_row)
             naki[i] = self._pad_matrix(naki[i], max_row)
+            masked_position[i] = self._pad_matrix(masked_position[i], max_row)
 
         
         # 定义CLS
@@ -145,36 +156,46 @@ class Encoder():
                                         tehai[2], naki[2],
                                         tehai[3], naki[3],
                                         encoded_record), axis=1)
-        masked_info = np.concatenate((  np.zeros((1, cls.shape[1]), dtype=np.int8), 
-                                        np.zeros((1, public_info.shape[1]), dtype=np.int8),
-                                        np.zeros((1, dora_indicators.shape[1]), dtype=np.int8),
-                                        masked_position[0], np.zeros((1, naki[0].shape[1]), dtype=np.int8),
-                                        masked_position[1], np.zeros((1, naki[1].shape[1]), dtype=np.int8),
-                                        masked_position[2], np.zeros((1, naki[2].shape[1]), dtype=np.int8),
-                                        masked_position[3], np.zeros((1, naki[3].shape[1]), dtype=np.int8),
-                                        np.zeros((1, encoded_record.shape[1]), dtype=np.int8)), axis=1)
+        masked_info = np.concatenate((  np.zeros((cls.shape[0], cls.shape[1]), dtype=np.int8),
+                                        np.zeros((public_info.shape[0], public_info.shape[1]), dtype=np.int8),
+                                        np.zeros((dora_indicators.shape[0], dora_indicators.shape[1]), dtype=np.int8),
+                                        masked_position[0], np.zeros((naki[0].shape[0], naki[0].shape[1]), dtype=np.int8),
+                                        masked_position[1], np.zeros((naki[1].shape[0], naki[1].shape[1]), dtype=np.int8),
+                                        masked_position[2], np.zeros((naki[2].shape[0], naki[2].shape[1]), dtype=np.int8),
+                                        masked_position[3], np.zeros((naki[3].shape[0], naki[3].shape[1]), dtype=np.int8),
+                                        np.zeros((encoded_record.shape[0], encoded_record.shape[1]), dtype=np.int8)), axis=1)
+        # masked_info = np.concatenate((  np.zeros((1, cls.shape[1]), dtype=np.int8), 
+        #                                 np.zeros((1, public_info.shape[1]), dtype=np.int8),
+        #                                 np.zeros((1, dora_indicators.shape[1]), dtype=np.int8),
+        #                                 masked_position[0], np.zeros((1, naki[0].shape[1]), dtype=np.int8),
+        #                                 masked_position[1], np.zeros((1, naki[1].shape[1]), dtype=np.int8),
+        #                                 masked_position[2], np.zeros((1, naki[2].shape[1]), dtype=np.int8),
+        #                                 masked_position[3], np.zeros((1, naki[3].shape[1]), dtype=np.int8),
+        #                                 np.zeros((1, encoded_record.shape[1]), dtype=np.int8)), axis=1)
 
         return encoded_info, masked_info
 
     # 随机对手牌进行mask
     def _mask_tehai(self, tehai: List[int], type=0) -> np.ndarray:
-        masked_position = np.zeros((1,len(tehai)), dtype=np.int8)
+        masked_tehai = tehai.copy()
 
         if type == 0:
         # 随机mask一半的牌
             mask_num = len(tehai) // 2
             mask_index = np.random.choice(len(tehai), mask_num, replace=False)
-            masked_position[0, mask_index] = 1
+            for index in mask_index:
+                masked_tehai[index] = -1
 
         elif type == 1:
             # mask所有的牌
-            masked_position[0, :] = 1
+            for index in range(len(tehai)):
+                masked_tehai[index] = -1
         
         elif type == 2:
             # 不mask任何牌
             pass
 
-        return masked_position
+        return masked_tehai
 
     def _pad_matrix(self, matrix: np.ndarray, max_row: int) -> np.ndarray:
         # 参数:
