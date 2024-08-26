@@ -252,11 +252,14 @@ class Taikyoku_loader(object):
                 self.reset(num=1)
             else:
                 self.reset(self.current_kyoku_index+2)# 重置到下一局
+
+            return "End of Kyoku!"
             
         else:
             tag = self.log[self.current_kyoku_index][self.current_tag_index]
             self._haddle_tag(tag, forward=True, print_info=print_info)
-        pass
+
+            return tag
 
     # TODO: 后退一步
     def step_backward(self):
@@ -332,3 +335,10 @@ class Taikyoku_loader(object):
             }
         }
         return info
+    
+    def check_playerActionTag(self, tag):
+        pattern_self_discard = re.compile(r'<([D])(\d{1,3})/>')
+        
+
+    def export_DT_data():
+        # 检测当前tag是否为

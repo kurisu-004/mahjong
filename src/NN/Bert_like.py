@@ -69,6 +69,8 @@ class Bert_like(nn.Module):
         self.rope = RoPE(d_model, max_len)
         encoder_layers = TransformerEncoderLayer(d_model, nhead, dim_feedforward, batch_first=True)
         self.transformer_encoder = TransformerEncoder(encoder_layers, num_encoder_layers)
+
+        self.softmax_output = nn.Softmax(dim=1)
         
     def forward(self, x):
         x = self.token_embed(x)
