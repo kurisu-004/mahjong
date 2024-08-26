@@ -2,7 +2,8 @@ import gym
 import numpy as np
 import warnings
 from gym.spaces import Discrete, Box
-import MahjongPyWrapper as pm
+# import MahjongPyWrapper as pm
+from . import MahjongPyWrapper as pm
 
 np.set_printoptions(threshold=np.inf)
 

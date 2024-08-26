@@ -12,7 +12,8 @@ import xml.etree.ElementTree as ET
 # import urllib.request
 # import gzip
 
-import MahjongPyWrapper as mp
+# import MahjongPyWrapper as mp
+from . import MahjongPyWrapper as mp
 
 # eventlet.monkey_patch()
 
@@ -227,7 +228,7 @@ class PaipuReplay:
         print('Games {}/{}/{}'.format(self.success, self.num_games, self.total_games))
 
     def _paipu_replay(self, path, paipu):
-        if not paipu.endswith('txt'): 
+        if not paipu.endswith('log'): 
             raise RuntimeError(f"Cannot read paipu {paipu}")
         filename = path + '/' + paipu
         # log(filename)
@@ -724,7 +725,7 @@ def paipu_replay_1(filename, path = None):
     replayer.set_log(True)
     replayer.logger = Logger(fp = 'stdout')
     try:
-        replayer.paipu_replay_1(path, filename)
+        replayer.paipu_replay_1(paipu_name=filename, path=path)
         print(replayer.log_cache)
     except Exception as e:
         print(replayer.log_cache)

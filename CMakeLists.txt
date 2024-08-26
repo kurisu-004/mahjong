@@ -27,7 +27,8 @@ include_directories(${PYTHON_INCLUDE_DIRS})
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/resource/syanten.dat ${CMAKE_CURRENT_BINARY_DIR}/resource/syanten.dat COPYONLY)
 
-add_subdirectory(ThirdParty EXCLUDE_FROM_ALL)
+# add_subdirectory(ThirdParty EXCLUDE_FROM_ALL)
+add_subdirectory(ThirdParty)
 add_subdirectory(Mahjong)
 add_subdirectory(Pybinder)
 add_subdirectory(test)

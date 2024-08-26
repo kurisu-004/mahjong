@@ -8,7 +8,7 @@ build/
 .ipynb_checkpoints/
 __pycache__/
 *.pyd
-*.so
+# *.so
 *.dylib
 *.mat
 *.DONGQI-TANIU-OI
