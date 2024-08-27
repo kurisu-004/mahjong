@@ -248,7 +248,7 @@ class myPaipuReplay(PaipuReplay):
                             if len(response_actions) > 1:
                                 player_id = replayer.table.who_make_selection()
                                 # 将pass动作存入buffer
-                                self.action_buffer[player_id].append("pass")
+                                self.action_buffer[player_id].append(action_encode['pass_for_naki'])
                                 self.tehai_buffer[player_id].append({
                                     "player0": replayer.table.players[0].hand_to_string(),
                                     "player1": replayer.table.players[1].hand_to_string(),
@@ -267,10 +267,9 @@ class myPaipuReplay(PaipuReplay):
                 player_id = "TUVW".find(child.tag[0])
                 remaining_tiles -= 1
                 obtained_tile = int(child.tag[1:])
-                self.log("玩家{}摸牌{}".format(player_id, get_tile_from_id(obtained_tile)))
 
                 # 向buffer中存入信息
-                self.action_buffer[player_id].append("draw {}".format(get_tile_from_id(obtained_tile)))
+                self.action_buffer[player_id].append(action_encode['draw'][get_tile_from_id(obtained_tile)])
                 self.tehai_buffer[player_id].append({
                     "player0": replayer.table.players[0].hand_to_string(),
                     "player1": replayer.table.players[1].hand_to_string(),
@@ -288,7 +287,8 @@ class myPaipuReplay(PaipuReplay):
                     selection = replayer.get_selection_from_action(mp.BaseAction.Riichi, [discarded_tile])
                     ret = replayer.make_selection(selection)
                     for i in range(4):
-                        self.action_buffer[i].append(f"player {player_id} Riich {self_actions[selection].to_string()}")
+                        self.action_buffer[i].append(action_encode['riichi'][f'player{i}']) # 立直
+                        self.action_buffer[i].append(action_encode['discard'][f'player{player_id}'][get_tile_from_id(discarded_tile)]) # 打牌
                         self.tehai_buffer[i].append({
                             "player0": replayer.table.players[0].hand_to_string(),
                             "player1": replayer.table.players[1].hand_to_string(),
@@ -305,7 +305,7 @@ class myPaipuReplay(PaipuReplay):
                     selection = replayer.get_selection_from_action(mp.BaseAction.Discard, [discarded_tile])
                     ret = replayer.make_selection(selection)
                     for i in range(4):
-                        self.action_buffer[i].append(f"player {player_id} {self_actions[selection].to_string()}")
+                        self.action_buffer[i].append(action_encode['discard'][f'player{player_id}'][get_tile_from_id(discarded_tile)])
                         self.tehai_buffer[i].append({
                             "player0": replayer.table.players[0].hand_to_string(),
                             "player1": replayer.table.players[1].hand_to_string(),
@@ -367,7 +367,7 @@ class myPaipuReplay(PaipuReplay):
 
                         # 向buffer中存入信息
                         for i in range(4):
-                            self.action_buffer[i].append(response_actions[selection].to_string())
+                            self.action_buffer[i].append(action_encode[naru_type][f'player{i}'])
                             self.tehai_buffer[i].append({
                                 "player0": replayer.table.players[0].hand_to_string(),
                                 "player1": replayer.table.players[1].hand_to_string(),
@@ -404,7 +404,7 @@ class myPaipuReplay(PaipuReplay):
                         player_id = replayer.table.who_make_selection()
                         replayer.make_selection(14)
                         for i in range(4):
-                            self.action_buffer[i].append(f"player {player_id}: 九种九牌")
+                            self.action_buffer[i].append(action_encode['kyushukyuhai'][f'player{player_id}'])
                             self.tehai_buffer[i].append({
                                 "player0": replayer.table.players[0].hand_to_string(),
                                 "player1": replayer.table.players[1].hand_to_string(),
@@ -427,7 +427,7 @@ class myPaipuReplay(PaipuReplay):
                             if len(response_actions) > 1:
                                 player_id = replayer.table.who_make_selection()
                                 # 将pass动作存入buffer
-                                self.action_buffer[player_id].append("pass")
+                                self.action_buffer[player_id].append(action_encode['pass_for_naki'])
                                 self.tehai_buffer[player_id].append({
                                     "player0": replayer.table.players[0].hand_to_string(),
                                     "player1": replayer.table.players[1].hand_to_string(),
@@ -440,7 +440,7 @@ class myPaipuReplay(PaipuReplay):
                             if phase == 16: # GAME_OVER
                                 break
                         for i in range(4):
-                            self.action_buffer[i].append("流局")
+                            self.action_buffer[i].append(action_encode['ryuukyoku'])
                             self.tehai_buffer[i].append({
                                 "player0": replayer.table.players[0].hand_to_string(),
                                 "player1": replayer.table.players[1].hand_to_string(),
@@ -451,8 +451,7 @@ class myPaipuReplay(PaipuReplay):
                         # 把和牌信息存入record
                         self.action_record.append(self.action_buffer)
                         self.tehai_record.append(self.tehai_buffer)
-
-                    self.log("本局结束: 结果是流局")     
+    
                     if replayer.get_phase() != int(mp.PhaseEnum.GAME_OVER):
                         raise ActionException('牌局未结束', paipu, game_order, honba)
 
@@ -475,6 +474,9 @@ class myPaipuReplay(PaipuReplay):
                     if child_no + 1 < len(root) and root[child_no + 1].tag == "AGARI":
                         double_ron = True
                         self.log("这局是Double Ron!!!!!!!!!!!!")
+                        # 忽略双响的对局
+                        break
+
                         who_agari.append(int(root[child_no + 1].get("who")))
                         
                         score_info_str2 = root[child_no + 1].get("sc").split(",")
@@ -499,7 +501,7 @@ class myPaipuReplay(PaipuReplay):
                             self.log('SelfAction Options End')
                             selection = replayer.get_selection_from_action(mp.BaseAction.Tsumo, [])
                             for i in range(4):
-                                self.action_buffer[i].append(f"player {player_id}: {self_actions[selection].to_string()}")
+                                self.action_buffer[i].append(action_encode['tsumo'][f'player{agari_player_id}'])
                                 self.tehai_buffer[i].append({
                                     "player0": replayer.table.players[0].hand_to_string(),
                                     "player1": replayer.table.players[1].hand_to_string(),
@@ -535,7 +537,7 @@ class myPaipuReplay(PaipuReplay):
                                     player_id = replayer.table.who_make_selection()
                                     selection = replayer.get_selection_from_action(mp.BaseAction.Ron, [])
                                     for i in range(4):
-                                        self.action_buffer[i].append(f"player {player_id}: {response_actions[selection].to_string()}")
+                                        self.action_buffer[i].append(action_encode['ron'][f'player{agari_player_id}'])
                                         self.tehai_buffer[i].append({
                                             "player0": replayer.table.players[0].hand_to_string(),
                                             "player1": replayer.table.players[1].hand_to_string(),
@@ -551,7 +553,7 @@ class myPaipuReplay(PaipuReplay):
                                     player_id = replayer.table.who_make_selection()
                                     selection = replayer.get_selection_from_action(mp.BaseAction.ChanKan, [])
                                     for i in range(4):
-                                        self.action_buffer[i].append(f"player {player_id}: {response_actions[selection].to_string()}")
+                                        self.action_buffer[i].append(action_encode['ron'][f'player{agari_player_id}'])
                                         self.tehai_buffer[i].append({
                                             "player0": replayer.table.players[0].hand_to_string(),
                                             "player1": replayer.table.players[1].hand_to_string(),
@@ -568,7 +570,7 @@ class myPaipuReplay(PaipuReplay):
                                     player_id = replayer.table.who_make_selection()
                                     selection = replayer.get_selection_from_action(mp.BaseAction.ChanAnKan, [])
                                     for i in range(4):
-                                        self.action_buffer[i].append(f"player {player_id}: {response_actions[selection].to_string()}")
+                                        self.action_buffer[i].append(action_encode['ron'][f'player{agari_player_id}'])
                                         self.tehai_buffer[i].append({
                                             "player0": replayer.table.players[0].hand_to_string(),
                                             "player1": replayer.table.players[1].hand_to_string(),
@@ -629,4 +631,180 @@ class myPaipuReplay(PaipuReplay):
                 #         int(owari_scores[4]) * 100, int(owari_scores[6]) * 100)
             else:
                 raise ValueError(child.tag, child.attrib, "Unexpected Element!")
-            
+
+action_encode = {
+    'draw': {
+            **{
+                f'{i}{suit}': idx + suit_idx * 10
+                for suit_idx, suit in enumerate(['m', 'p', 's'])
+                for idx, i in enumerate(range(10))
+            },
+            **{
+                f'{i}z': idx + 30
+                for idx, i in enumerate(range(1, 8))
+            },
+        },
+    'discard': {
+        'player0': {
+            **{
+                f'{i}{suit}': idx + suit_idx * 10 + 37
+                for suit_idx, suit in enumerate(['m', 'p', 's'])
+                for idx, i in enumerate(range(10))
+            },
+            **{
+                f'{i}z': idx + 30 + 37
+                for idx, i in enumerate(range(1, 8))
+            },
+        },
+        'player1': {
+            **{
+                f'{i}{suit}': idx + suit_idx * 10 + 74
+                for suit_idx, suit in enumerate(['m', 'p', 's'])
+                for idx, i in enumerate(range(10))
+            },
+            **{
+                f'{i}z': idx + 30 + 74
+                for idx, i in enumerate(range(1, 8))
+            },
+        },
+        'player2': {
+            **{
+                f'{i}{suit}': idx + suit_idx * 10 + 111
+                for suit_idx, suit in enumerate(['m', 'p', 's'])
+                for idx, i in enumerate(range(10))
+            },
+            **{
+                f'{i}z': idx + 30 + 111
+                for idx, i in enumerate(range(1, 8))
+            },
+        },
+        'player3': {
+            **{
+                f'{i}{suit}': idx + suit_idx * 10 + 148
+                for suit_idx, suit in enumerate(['m', 'p', 's'])
+                for idx, i in enumerate(range(10))
+            },
+            **{
+                f'{i}z': idx + 30 + 148
+                for idx, i in enumerate(range(1, 8))
+            },
+        }
+        
+    },
+    'Chi':{
+        'player0': 185,
+        'player1': 186,
+        'player2': 187,
+        'player3': 188
+    },
+    'Pon':{
+        'player0': 189,
+        'player1': 190,
+        'player2': 191,
+        'player3': 192
+    },
+    'Min-Kan':{
+        'player0': 193,
+        'player1': 194,
+        'player2': 195,
+        'player3': 196
+    },
+    'An-Kan':{
+        'player0': 197,
+        'player1': 198,
+        'player2': 199,
+        'player3': 200
+    },
+    'Ka-Kan':{
+        'player0': 201,
+        'player1': 202,
+        'player2': 203,
+        'player3': 204
+    },
+    'riichi':{
+        'player0': 205,
+        'player1': 206,
+        'player2': 207,
+        'player3': 208
+    },
+    'ron':{
+        'player0': 209,
+        'player1': 210,
+        'player2': 211,
+        'player3': 212
+    },
+    'tsumo':{
+        'player0': 213,
+        'player1': 214,
+        'player2': 215,
+        'player3': 216
+    },
+    'kyushukyuhai':{
+        'player0': 217,
+        'player1': 218,
+        'player2': 219,
+        'player3': 220
+    },
+    'pass_for_naki': 221,
+    'pass_for_riichi': 222,
+    'ryuukyoku': 223
+    }
+
+
+# 手牌编码
+import numpy as np
+from collections import Counter
+
+# 定义牌的映射表
+tile_map = {
+    '0m': 0, '1m': 5, '2m': 10, '3m': 15, '4m': 20, '5m': 25, '6m': 30, '7m': 35, '8m': 40, '9m': 45,
+    '0p': 50, '1p': 55, '2p': 60, '3p': 65, '4p': 70, '5p': 75, '6p': 80, '7p': 85, '8p': 90, '9p': 95,
+    '0s': 100, '1s': 105, '2s': 110, '3s': 115, '4s': 120, '5s': 125, '6s': 130, '7s': 135, '8s': 140, '9s': 145,
+    '1z': 150, '2z': 155, '3z': 160, '4z': 165, '5z': 170, '6z': 175, '7z': 180
+}
+
+def split_tiles(call_str):
+    """将类似于'1p2p3p'的字符串拆分为['1p', '2p', '3p']"""
+    return [call_str[i:i+2] for i in range(0, len(call_str), 2)]
+
+def parse_hand_and_calls(data):
+    all_tiles = [[], [], [], []]
+    for i in range(4):
+        hand = data[f'player{i}'].split('Hand: ')[1].split(' \n')[0].split()
+        all_tiles[i].extend(hand)
+        calls = []
+        if 'Calls: ' in data[f'player{i}']:
+            raw_calls = data[f'player{i}'].split('Calls: ')[1].split(' \n')[0].replace('(', '').replace(')', '').split()
+            for call in raw_calls:
+                calls.extend(split_tiles(call))  # 拆分每个call
+            all_tiles[i].extend(calls)
+        # print(hand, calls)
+    return all_tiles
+
+def encode_tiles(tiles):
+    vector = np.zeros(37 * 5 * 4, dtype=bool)
+    for i in range(4):
+
+        counter = Counter(tiles[i])
+    
+        for tile, count in counter.items():
+            if tile in tile_map:
+                idx = tile_map[tile] + i * 37 * 5
+                vector[idx+count] = True
+                
+                
+    return vector
+
+# # 示例输入数据
+# data = {
+#     'player0': 'Pt: 25000\nWind: East\nHand: 1m 2m 3m 4m 6m 7m 8m 9m 6z 6z \nCalls: (7z)7z7z \nRiver: 2s1h 3p5h- 7s9h 8s13h 5s17 1s21 2z25 6m29 1p33- \nRiichi: No\nMenzen: No',
+#     'player1': 'Pt: 25000\nWind: South\nHand: 3p 4p 4p 5p 6p 8p 9p \nCalls: 1p2p(3p) (1p)2p3p \nRiver: 9m2h 3m6h 6s10 7z14 2s18h 1s22h 5z26h 3m30 6z34h \nRiichi: No\nMenzen: No',
+#     'player2': 'Pt: 25000\nWind: West\nHand: 4m 5m 0p 7p 9p 9p 2s 3s 0s 5s 7s 8s 9s \nRiver: 3z3h 1z7 1z11 1p15h 1m19 2p23 1z27 4m31h \nRiichi: No\nMenzen: Yes',
+#     'player3': 'Pt: 25000\nWind: North\nHand: 3m 4m 0m 6m 7m 8m 9m 4p 3s 4s 4s 6s 6s \nRiver: 5z4h 4z8 7z12h- 9s16h 8p20h 7s24h 9p28 4z32 \nRiichi: No\nMenzen: Yes'
+# }
+
+# # 解析数据并编码
+# tiles = parse_hand_and_calls(data)
+# vector = encode_tiles(tiles)
+
+# print(vector)

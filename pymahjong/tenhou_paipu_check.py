@@ -55,6 +55,9 @@ def get_tile_from_id(id):
     color = id // 36
     number = (id % 36) // 4 + 1
     color_str = "mpsz"
+    # 红宝牌
+    if number == 5 and (id % 36) % 4 == 0 and color < 3:
+        return '0' + color_str[color]
     return str(number) + color_str[color]
 
 def get_tiles_from_id(tiles):
