@@ -30,3 +30,4 @@ paipuxmls/
 *.model
 /dataset/
 .DS_Store
+*.pt
