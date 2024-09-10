@@ -355,22 +355,14 @@ class myModel(nn.Module):
         # print('pred_logits',pred_logits.shape)
 
         mask = mask.unsqueeze(-1).unsqueeze(-1)
-        # print('mask:', mask.shape)
-
-        # target = batch['target']
-        # print('target:', target.shape)
 
         # 计算损失
         pred_logits = pred_logits.view(-1, 5)
         target = target.view(-1)
         mask = mask.expand(-1, -1, 4, 37)
-        # print('pred_logits:', pred_logits.shape)
-        # print('target:', target.shape)
-        # print('mask:', mask.shape)
-        mask = mask.reshape(-1)
 
         loss = F.cross_entropy(pred_logits, target, reduction='none')
-        # print('loss:', loss.shape)
+
         loss = loss * mask
 
         return {
@@ -380,5 +372,3 @@ class myModel(nn.Module):
             'logits': pred_logits.view(-1, 256, 4, 37, 5)
 
         }
-
-        # return masked_logits
