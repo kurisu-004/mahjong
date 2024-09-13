@@ -107,7 +107,7 @@ class myMahjongEnv(MahjongEnv):
     
     # 动作映射
     action_to_env = {
-        0: 
+        0: 0
     }
 
     SELF_ACTION_DIM = 49
