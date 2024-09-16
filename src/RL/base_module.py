@@ -6,27 +6,22 @@ from transformers import GPT2Model, GPT2Config
 
 
 # 参考suphx的方法，输入的特征形状为(batch, channel, height, width)
-# 其中height=4, width=34表示所有的牌
+# 其中height=4, width=9表示所有的牌
 # 不同的channel表示不同的特征，具体如下
 # ------------------player0 自己------------------
-# 0~3: 自己的手牌 player0
-# 4~7: 自己的副露
-# 8: 自己是否持有红宝牌
+# 0~4: 自己的手牌 player0
+# 5~9: 自己的副露
 # ------------------player1 下家------------------
-# 9~12: player1的副露
-# 13: player1是否持有红宝牌
+# 10~14: player1的副露
 # ------------------player2 对家------------------
-# 14~17: player2的副露
-# 18: player2是否持有红宝牌
+# 15~19: player2的副露
 # ------------------player3 上家------------------
-# 19~22: player3的副露
-# 23: player3是否持有红宝牌
+# 20~24: player3的副露
 # ------------------dora 指示牌------------------
-# 24~27: dora牌
-# 28: 是否有赤宝牌
+# 25~29: dora牌
 # ------------------剩余牌 视野中未出现的牌------------------
-# 29~32: 剩余牌
-# 33: 是否有赤宝牌
+# 30~34: 剩余牌
+
 
 
 class Rsidual_Block(nn.Module):
@@ -73,6 +68,8 @@ class Tiles_CNN(nn.Module):
         return x
     
 
+# TODO 环境仅提供了单局的模拟，没有提供多局的模拟
+# 因此有用的信息只有oya，riichi_sticks
 class pub_info_embedding(nn.Module):
     def __init__(self):
         super(pub_info_embedding, self).__init__()

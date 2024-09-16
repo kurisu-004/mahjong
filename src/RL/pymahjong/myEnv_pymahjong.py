@@ -4,6 +4,8 @@ import warnings
 from gymnasium.spaces import Discrete, Box, Dict, Sequence
 from . import MahjongPyWrapper as pm
 from .env_pymahjong import MahjongEnv
+import re
+from collections import Counter
 
 class myMahjongEnv(MahjongEnv):
     # 对动作进行编码，编码形式如下
@@ -12,111 +14,128 @@ class myMahjongEnv(MahjongEnv):
         'player0': {
             'discard': {
                 **{
-                    f'{i}{suit}': idx + suit_idx * 10
+                    f'{i}{suit}': idx + suit_idx * 9
                     for suit_idx, suit in enumerate(['m', 'p', 's'])
-                    for idx, i in enumerate(range(10))
+                    for idx, i in enumerate(range(1, 10))
                 },
                 **{
-                    f'{i}z': idx + 30
+                    f'{i}z': idx + 27
                     for idx, i in enumerate(range(1, 8))
                 },
             },
-            'chi_left': 37,
-            'chi_middle': 38,
-            'chi_right': 39,
-            'pon': 40,
-            'minkan': 41,
-            'ankan': 42,
-            'kakan': 43,
-            'reach': 44,
-            'agari': 45,
-            'pass_naki': 46,
-            'pass_reach': 47,
-            'kyushukyuhai': 48,
+            'chi_left': 34,
+            'chi_middle': 35,
+            'chi_right': 36,
+            'pon': 37,
+            'ankan': 38,
+            'kan': 39,
+            'kakan': 40,
+            'riichi': 41,
+            'ron': 42,
+            'tsumo': 43,
+            'kyushukyuhai': 44,
+            'pass_naki': 45,
+            'pass_riichi': 46,
             },
         'player1': {
             'discard': {
                 **{
-                    f'{i}{suit}': idx + suit_idx * 10 + 49
+                    f'{i}{suit}': idx + suit_idx * 9 + 47
                     for suit_idx, suit in enumerate(['m', 'p', 's'])
-                    for idx, i in enumerate(range(10))
+                    for idx, i in enumerate(range(1, 10))
                 },
                 **{
-                    f'{i}z': idx + 30 + 49
+                    f'{i}z': idx + 27 + 47
                     for idx, i in enumerate(range(1, 8))
                 },
             },
-            'chi_left': 86,
-            'chi_middle': 87,
-            'chi_right': 88,
-            'pon': 89,
-            'minkan': 90,
-            'ankan': 91,
-            'kakan': 92,
-            'reach': 93,
-            'agari': 94,
-            'kyushukyuhai': 95,
-            },
+            'chi_left': 81,
+            'chi_middle': 82,
+            'chi_right': 83,
+            'pon': 84,
+            'ankan': 85,
+            'kan': 86,
+            'kakan': 87,
+            'riichi': 88,
+            'ron': 89,
+            'tsumo': 90,
+            'kyushukyuhai': 91,
+            'pass_naki': 92,
+            'pass_riichi': 93,
+        },
         'player2': {
             'discard': {
                 **{
-                    f'{i}{suit}': idx + suit_idx * 10 + 96
+                    f'{i}{suit}': idx + suit_idx * 9 + 94
                     for suit_idx, suit in enumerate(['m', 'p', 's'])
-                    for idx, i in enumerate(range(10))
+                    for idx, i in enumerate(range(1, 10))
                 },
                 **{
-                    f'{i}z': idx + 30 + 96
+                    f'{i}z': idx + 27 + 94
                     for idx, i in enumerate(range(1, 8))
                 },
             },
-            'chi_left': 133,
-            'chi_middle': 134,
-            'chi_right': 135,
-            'pon': 136,
-            'minkan': 137,
-            'ankan': 138,
-            'kakan': 139,
-            'reach': 140,
-            'agari': 141,
-            'kyushukyuhai': 142,
-            },
+            'chi_left': 128,
+            'chi_middle': 129,
+            'chi_right': 130,
+            'pon': 131,
+            'ankan': 132,
+            'kan': 133,
+            'kakan': 134,
+            'riichi': 135,
+            'ron': 136,
+            'tsumo': 137,
+            'kyushukyuhai': 138,
+            'pass_naki': 139,
+            'pass_riichi': 140,
+        },
         'player3': {
             'discard': {
                 **{
-                    f'{i}{suit}': idx + suit_idx * 10 + 143
+                    f'{i}{suit}': idx + suit_idx * 9 + 141
                     for suit_idx, suit in enumerate(['m', 'p', 's'])
-                    for idx, i in enumerate(range(10))
+                    for idx, i in enumerate(range(1, 10))
                 },
                 **{
-                    f'{i}z': idx + 30 + 143
+                    f'{i}z': idx + 27 + 141
                     for idx, i in enumerate(range(1, 8))
                 },
             },
-            'chi_left': 180,
-            'chi_middle': 181,
-            'chi_right': 182,
-            'pon': 183,
-            'minkan': 184,
-            'ankan': 185,
-            'kakan': 186,
-            'reach': 187,
-            'agari': 188,
-            'kyushukyuhai': 189,
-            }
-        }
+            'chi_left': 175,
+            'chi_middle': 176,
+            'chi_right': 177,
+            'pon': 178,
+            'ankan': 179,
+            'kan': 180,
+            'kakan': 181,
+            'riichi': 182,
+            'ron': 183,
+            'tsumo': 184,
+            'kyushukyuhai': 185,
+            'pass_naki': 186,
+            'pass_riichi': 187,
+        },
+    }
     
     # 动作映射
-    action_to_env = {
+    action_mapping = {
         0: 0
     }
 
-    SELF_ACTION_DIM = 49
+    suit_mapping = {
+        'm': 0,
+        'p': 1,
+        's': 2,
+        'z': 3
+    }
+
+    SELF_ACTION_DIM = 47
     RECORDER_ACTION_DIM = 190
     ACTIONS_MAX_LEN = 128
 
-    TILES_FEATURES_CHANNEL = 34
+    TILES_FEATURES_CHANNEL = 35
     TILES_FEATURES_HEIGHT = 4
-    TILES_FEATURES_WIDTH = 34
+    TILES_FEATURES_WIDTH = 9
 
 
 
@@ -147,24 +166,162 @@ class myMahjongEnv(MahjongEnv):
                 'self_action_mask': self.self_action_mask_space
             }
         )
+        self.action_record = [] # 以绝对位置记录动作
+        self.tiles_features_record = [[], [], [], []]
+        self.oya_record = [[], [], [], []]
+        self.riichi_sticks_record = [[], [], [], []]
         self.reset()
 
-    def get_observation(self):
-        
-        tiles_features = self.tiles_features_space.sample()
-        info = {
-            'scores': self.scores_space.sample(),
-            'oya': self.oya_space.sample(),
-            'honba_riichi_sticks': self.honba_riichi_sticks_space.sample(),
-        }
-        action_list = self.action_list_space.sample()
-        self_action_mask = self.self_action_mask_space.sample()
-        return {
-            'tiles_features': tiles_features,
-            'info': info,
-            'action_list': action_list,
-            'self_action_mask': self_action_mask
-        }
+    def _proceed(self):
+        while not self.is_over():  # continue until game over or one player has choices
+            phase = self.t.get_phase()
+            if phase < 4:
+                aval_actions = self.t.get_self_actions()
+            elif phase < 16:
+                aval_actions = self.t.get_response_actions()
+            else:
+                raise ValueError(f"Invalid phase {phase}")
+            if len(aval_actions) > 1:
+                return phase, aval_actions
+            else:
+                self.t.make_selection(0)
+
+    # 这里的player_id是需要获取观察的玩家的id
+    # 返回一个list，list中的元素是一个字符串，表示玩家的手牌
+    def _get_hand_tiles(self, player_id):
+        hand = []
+        hand_list = self.t.players[player_id].hand
+        for tile in hand_list:
+            hand.append(tile.to_string())
+        return hand
+
+    def _get_fuuros(self, player_id):
+        fuuros = []
+        fuuro_list = self.t.players[player_id].get_fuuros()
+        for fuuro in fuuro_list:
+            tiles = fuuro.tiles
+            for tile in tiles:
+                fuuros.append(tile.to_string())
+        return fuuros
+    
+    def _get_dora_indicators(self):
+        dora_indicators = []
+        dora_list = self.t.dora_indicator
+        n_active_dora = self.t.n_active_dora
+        for dora in dora_list[:n_active_dora]:
+            dora_indicators.append(dora.to_string())
+        return dora_indicators
+    
+    def _get_points(self, player_id):
+        return self.t.players[player_id].score
+    
+    def _get_oya(self, player_id):
+        return (self.t.oya-player_id)%4
+    
+    def _get_riichi_sticks(self):
+        return self.t.riichibo
+
+    def _get_action_record(self):
+        return self.action_record
+    
+    # 这里指的是当前player看不见的牌
+    # 包括yama, 另外三家的手牌，再扣去dora指示牌
+    def _get_remaining_tiles(self, player_id):
+        remaining_tiles = [tile.to_string() for tile in self.t.yama]
+        # print("yama", len(remaining_tiles))
+        dora_indicators = self._get_dora_indicators()
+        # print("dora", len(dora_indicators))
+        for dora in dora_indicators:
+            if dora in remaining_tiles:
+                remaining_tiles.remove(dora)
+            else:
+                raise ValueError(f"Invalid dora indicator {dora}")
+        for i in range(4):
+            if i != player_id:
+                hand = self._get_hand_tiles(i)
+                # print(f"hand{i}", len(hand))
+                remaining_tiles.extend(hand)
+        return remaining_tiles
+
+    
+    def _change_action_record_aspects(self, player_id):
+        action_list = []
+        self_action_mask = []
+        for action in self.action_record:
+            player = action['player_id']
+            action_type = action['action']
+            action_list.append(((player-player_id)%4) * 47 + action_type)
+            if player == player_id:
+                self_action_mask.append(1)
+            else:
+                self_action_mask.append(0)
+        return action_list, self_action_mask
+    def _padding_action_record(self, action_list, self_action_mask):
+        padding_mask = [1]*len(action_list)+[0]*(self.ACTIONS_MAX_LEN-len(action_list))
+        padding_action = action_list + [0]*(self.ACTIONS_MAX_LEN-len(action_list))
+        padding_self_action_mask = self_action_mask + [0]*(self.ACTIONS_MAX_LEN-len(action_list))
+        padding_action = np.array(padding_action)
+        padding_self_action_mask = np.array(padding_self_action_mask)
+        padding_mask = np.array(padding_mask)
+        return padding_action, padding_self_action_mask, padding_mask
+
+
+    def _transfer_to_2D(self, tiles_list):
+        # 统计list中每种元素出现的次数
+        counter = Counter(tiles_list)
+        matrix = np.zeros((5, self.TILES_FEATURES_HEIGHT, self.TILES_FEATURES_WIDTH), dtype=bool)
+        # 检查是否有0m, 0p, 0s
+        if '0m' in counter.keys():
+            matrix[4, 0, 4] = 1
+            if '5m' in counter.keys():
+                counter['5m'] += 1
+            else:
+                counter['5m'] = 1
+        if '0p' in counter.keys():
+            matrix[4, 1, 4] = 1
+            if '5p' in counter.keys():
+                counter['5p'] += 1
+            else:
+                counter['5p'] = 1
+        if '0s' in counter.keys():
+            matrix[4, 2, 4] = 1
+            if '5s' in counter.keys():
+                counter['5s'] += 1
+            else:
+                counter['5s'] = 1
+
+        for tile in counter.keys():
+            suit = tile[-1]
+            number = int(tile[0])
+            if number == 0:
+                continue
+            elif suit in ['m', 'p', 's', 'z'] and number in range(1, 10):
+                matrix[0:counter[tile], self.suit_mapping[suit], number-1] = 1
+            else:
+                raise ValueError(f"Invalid tile {tile}")
+        return matrix
+
+
+    # 这里的返回值应该以gymnasium的格式返回
+    def _get_tiles_features(self, player_id):
+
+        for i in range(4):
+            if i == player_id:
+                player0_hand = self._transfer_to_2D(self._get_hand_tiles(i))
+                player0_fuuros = self._transfer_to_2D(self._get_fuuros(i))
+            elif (i-player_id)%4==1:
+                player1_fuuros = self._transfer_to_2D(self._get_fuuros(i))
+            elif (i-player_id)%4==2:
+                player2_fuuros = self._transfer_to_2D(self._get_fuuros(i))
+            elif (i-player_id)%4==3:
+                player3_fuuros = self._transfer_to_2D(self._get_fuuros(i))
+        dora_indicators = self._transfer_to_2D(self._get_dora_indicators())
+        remaining_tiles = self._transfer_to_2D(self._get_remaining_tiles(player_id))
+
+        tiles_features = np.concatenate([player0_hand, player0_fuuros, player1_fuuros, player2_fuuros, player3_fuuros, dora_indicators, remaining_tiles], axis=0)
+        oya = self._get_oya(player_id)
+
+        return tiles_features, oya
 
 
     def reset(self, oya=None, game_wind=None, seed=None):
@@ -191,4 +348,29 @@ class myMahjongEnv(MahjongEnv):
         self._proceed()
 
     def step(self, player_id: int, action: int):
-        return super().step(player_id, action)
+        tiles_features, oya = self._get_tiles_features(player_id)
+        super().step(player_id, action)
+        self.tiles_features_record[player_id].append(tiles_features)
+        self.oya_record[player_id].append(oya)
+        self.riichi_sticks_record[player_id].append(self._get_riichi_sticks())
+        self.action_record.append({
+            'player_id': player_id,
+            'action': action
+        })
+
+    def get_observation(self, player_id):
+        tils_features = np.array(self.tiles_features_record[player_id])
+        oya = np.array(self.oya_record[player_id])
+        riichi_sticks = np.array(self.riichi_sticks_record[player_id])
+        action_list, self_action_mask = self._change_action_record_aspects(player_id)
+        action_list, self_action_mask, padding_mask = self._padding_action_record(action_list, self_action_mask)
+        return {
+            'tiles_features': tils_features,
+            'info': {
+                'oya': oya,
+                'riichi_sticks': riichi_sticks
+            },
+            'action_list': action_list,
+            'self_action_mask': self_action_mask,
+            'padding_mask': padding_mask
+        }
