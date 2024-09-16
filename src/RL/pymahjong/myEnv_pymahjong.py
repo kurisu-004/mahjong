@@ -130,7 +130,7 @@ class myMahjongEnv(MahjongEnv):
     }
 
     SELF_ACTION_DIM = 47
-    RECORDER_ACTION_DIM = 190
+    RECORDER_ACTION_DIM = 188 + 1
     ACTIONS_MAX_LEN = 128
 
     TILES_FEATURES_CHANNEL = 35
@@ -170,6 +170,7 @@ class myMahjongEnv(MahjongEnv):
         self.tiles_features_record = [[], [], [], []]
         self.oya_record = [[], [], [], []]
         self.riichi_sticks_record = [[], [], [], []]
+        self.legal_actions_mask_record = [[], [], [], []]
         self.reset()
 
     def _proceed(self):
@@ -245,8 +246,8 @@ class myMahjongEnv(MahjongEnv):
 
     
     def _change_action_record_aspects(self, player_id):
-        action_list = []
-        self_action_mask = []
+        action_list = [188]
+        self_action_mask = [0]
         for action in self.action_record:
             player = action['player_id']
             action_type = action['action']
@@ -322,6 +323,23 @@ class myMahjongEnv(MahjongEnv):
         oya = self._get_oya(player_id)
 
         return tiles_features, oya
+    
+    def _get_Q_values(self, player_id, self_action_len, gamma=0.99):
+        if not self.is_over():
+            raise ValueError("The game is not over yet.")
+        payoff = self.get_payoffs()[player_id]
+        Q = np.zeros(self_action_len, dtype=np.float32)
+        Q[-1] = payoff
+        for i in reversed(range(self_action_len-1)):
+            Q[i] = Q[i+1] * gamma
+        return Q
+
+    def _get_legal_actions_mask(self):
+        legal_actions_idx = self.get_valid_actions()
+        legal_actions = np.zeros(self.SELF_ACTION_DIM, dtype=bool)
+        # legal_actions_idx是一个np.array，里面存放的是合法动作的索引
+        legal_actions[legal_actions_idx] = 1
+        return legal_actions
 
 
     def reset(self, oya=None, game_wind=None, seed=None):
@@ -344,12 +362,23 @@ class myMahjongEnv(MahjongEnv):
         self.may_riichi_tile_id = None
 
         self.game_count += 1
+        self.action_record = []
+        self.tiles_features_record = [[], [], [], []]
+        self.oya_record = [[], [], [], []]
+        self.riichi_sticks_record = [[], [], [], []]
+        self.legal_actions_mask_record = [[], [], [], []]
+
 
         self._proceed()
 
     def step(self, player_id: int, action: int):
         tiles_features, oya = self._get_tiles_features(player_id)
+
+
+        legal_actions = self._get_legal_actions_mask()
         super().step(player_id, action)
+
+        self.legal_actions_mask_record[player_id].append(legal_actions)
         self.tiles_features_record[player_id].append(tiles_features)
         self.oya_record[player_id].append(oya)
         self.riichi_sticks_record[player_id].append(self._get_riichi_sticks())
@@ -358,12 +387,15 @@ class myMahjongEnv(MahjongEnv):
             'action': action
         })
 
-    def get_observation(self, player_id):
+    def get_observation_with_return(self, player_id):
+        if not self.is_over():
+            raise ValueError("The game is not over yet.")
         tils_features = np.array(self.tiles_features_record[player_id])
         oya = np.array(self.oya_record[player_id])
         riichi_sticks = np.array(self.riichi_sticks_record[player_id])
         action_list, self_action_mask = self._change_action_record_aspects(player_id)
         action_list, self_action_mask, padding_mask = self._padding_action_record(action_list, self_action_mask)
+        Q = self._get_Q_values(player_id, self_action_mask.sum())
         return {
             'tiles_features': tils_features,
             'info': {
@@ -372,5 +404,24 @@ class myMahjongEnv(MahjongEnv):
             },
             'action_list': action_list,
             'self_action_mask': self_action_mask,
-            'padding_mask': padding_mask
+            'attention_mask': padding_mask,
+            'Q_values': Q,
+            'legal_action_mask': np.array(self.legal_actions_mask_record[player_id])
+        }
+
+    def get_observation(self, player_id):
+        tils_features, oya = self._get_tiles_features(player_id)
+        riichi_sticks = self._get_riichi_sticks()
+        action_list, self_action_mask = self._change_action_record_aspects(player_id)
+        action_list, self_action_mask, padding_mask = self._padding_action_record(action_list, self_action_mask)
+        legal_actions_mask = self._get_legal_actions_mask()
+        return {
+            'tiles_features': np.array(tils_features),
+            'info': {
+                'oya': oya,
+                'riichi_sticks': riichi_sticks
+            },
+            'action_list': action_list,
+            'attention_mask': padding_mask,
+            'legal_action_mask': legal_actions_mask
         }
