@@ -31,3 +31,4 @@ paipuxmls/
 /dataset/
 .DS_Store
 *.pt
+*.pth
