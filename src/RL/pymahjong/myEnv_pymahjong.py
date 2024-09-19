@@ -118,8 +118,29 @@ class myMahjongEnv(MahjongEnv):
     }
     
     # 动作映射
-    action_mapping = {
-        0: 0
+    action_id2name = {
+        **{
+            suit_idx*9+idx: f'Discard {i}{suit}'
+            for suit_idx, suit in enumerate(['m', 'p', 's'])
+            for idx, i in enumerate(range(1, 10))
+        },
+        **{
+            idx+27: f'Discard {i}z'
+            for idx, i in enumerate(range(1, 8))
+        },
+        34: 'Chi_left',
+        35: 'Chi_middle',
+        36: 'Chi_right',
+        37: 'Pon',
+        38: 'AnKan',
+        39: 'Kan',
+        40: 'KaKan',
+        41: 'Riichi',
+        42: 'Ron',
+        43: 'Tsumo',
+        44: 'Kyushukyuhai',
+        45: 'Pass Naki',
+        46: 'Pass Riichi',
     }
 
     suit_mapping = {
@@ -171,7 +192,10 @@ class myMahjongEnv(MahjongEnv):
         self.oya_record = [[], [], [], []]
         self.riichi_sticks_record = [[], [], [], []]
         self.legal_actions_mask_record = [[], [], [], []]
+        self.last_discard_tile = None
         self.reset()
+        self.riichi_stage2 = False # 是否进入了立直第二阶段即
+        self.pass_riichi = False # 是否pass了立直
 
     def _proceed(self):
         while not self.is_over():  # continue until game over or one player has choices
@@ -335,7 +359,7 @@ class myMahjongEnv(MahjongEnv):
         return Q
 
     def _get_legal_actions_mask(self):
-        legal_actions_idx = self.get_valid_actions()
+        legal_actions_idx = np.array(self.get_valid_actions())
         legal_actions = np.zeros(self.SELF_ACTION_DIM, dtype=bool)
         # legal_actions_idx是一个np.array，里面存放的是合法动作的索引
         legal_actions[legal_actions_idx] = 1
@@ -371,21 +395,158 @@ class myMahjongEnv(MahjongEnv):
 
         self._proceed()
 
-    def step(self, player_id: int, action: int):
+    def step(self, player_id: int, action_idx: int):
         tiles_features, oya = self._get_tiles_features(player_id)
-
-
         legal_actions = self._get_legal_actions_mask()
-        super().step(player_id, action)
-
         self.legal_actions_mask_record[player_id].append(legal_actions)
         self.tiles_features_record[player_id].append(tiles_features)
         self.oya_record[player_id].append(oya)
         self.riichi_sticks_record[player_id].append(self._get_riichi_sticks())
         self.action_record.append({
             'player_id': player_id,
-            'action': action
+            'action': action_idx
         })
+        # super().step(player_id, action)
+
+        # 判断是否是正确的玩家
+        if not player_id == self.get_curr_player_id():
+            raise ValueError("current acting player ID is {}, but you are trying to ask player {} to act !!".format(
+                self.get_curr_player_id(), player_id))
+        
+# --------------------------获取当前阶段的可选动作--------------------------------
+        phase = self.t.get_phase()
+        if phase < 4:
+            aval_actions = self.t.get_self_actions()
+        elif phase < 16:
+            aval_actions = self.t.get_response_actions()
+        else:
+            raise ValueError(f"Invalid phase {phase}")
+# --------------------------处理立直相关的动作--------------------------------
+        if self.action_id2name[action_idx] == 'Riichi':
+            self.riichi_stage2 = True
+
+        elif self.action_id2name[action_idx] == 'Pass Riichi':
+            self.pass_riichi = True
+# --------------------------处理其他动作--------------------------------
+        # 舍牌动作
+        elif action_idx < 34:
+            self.last_discard_tile = action_idx
+            # 从aval_actions中找到对应的动作
+            for action in aval_actions:
+                base_action = action.action
+                if (base_action.name == 'Riichi' and self.riichi_stage2 == True) or (base_action.name == 'Discard' and self.riichi_stage2 == False):
+                    corr_tiles = action.correspond_tiles
+                    # print(corr_tiles[0].id//4, action_idx)
+                    assert len(corr_tiles) == 1
+                    if corr_tiles[0].id//4 == action_idx:
+                        self.t.make_selection_from_action_basetile(base_action, [corr_tiles[0].tile], False)
+                        # 将标志位还原
+                        self.riichi_stage2 = False
+                        self.pass_riichi = False
+                        # print("player{} discard {}".format(player_id, corr_tiles[0].tile))
+                        break
+
+        # 吃碰杠动作   
+        elif self.action_id2name[action_idx] == 'Chi_left':
+            for action in aval_actions:
+                base_action = action.action
+                if base_action.name == 'Chi':
+                    corr_tiles = action.correspond_tiles
+                    assert len(corr_tiles) == 2
+                    if corr_tiles[0].id//4 > self.last_discard_tile and corr_tiles[1].id//4 > self.last_discard_tile:
+                        self.t.make_selection_from_action_tile(base_action, corr_tiles)
+                        break
+
+        elif self.action_id2name[action_idx] == 'Chi_middle':
+            for action in aval_actions:
+                base_action = action.action
+                if base_action.name == 'Chi':
+                    corr_tiles = action.correspond_tiles
+                    assert len(corr_tiles) == 2
+                    if corr_tiles[0].id//4 < self.last_discard_tile and corr_tiles[1].id//4 > self.last_discard_tile:
+                        self.t.make_selection_from_action_tile(base_action, corr_tiles)
+                        break
+
+        elif self.action_id2name[action_idx] == 'Chi_right':
+            for action in aval_actions:
+                base_action = action.action
+                if base_action.name == 'Chi':
+                    corr_tiles = action.correspond_tiles
+                    assert len(corr_tiles) == 2
+                    if corr_tiles[0].id//4 < self.last_discard_tile and corr_tiles[1].id//4 < self.last_discard_tile:
+                        self.t.make_selection_from_action_tile(base_action, corr_tiles)
+                        break
+
+        elif self.action_id2name[action_idx] == 'Pon':
+            for action in aval_actions:
+                base_action = action.action
+                if base_action.name == 'Pon':
+                    corr_tiles = action.correspond_tiles
+                    assert len(corr_tiles) == 2
+                    self.t.make_selection_from_action_tile(base_action, corr_tiles)
+                    break
+
+        elif self.action_id2name[action_idx] == 'Kan':
+            for action in aval_actions:
+                base_action = action.action
+                if base_action.name == 'Kan':
+                    corr_tiles = action.correspond_tiles
+                    assert len(corr_tiles) == 3
+                    self.t.make_selection_from_action_tile(base_action, corr_tiles)
+                    break
+
+        elif self.action_id2name[action_idx] == 'AnKan':
+            for action in aval_actions:
+                base_action = action.action
+                if base_action.name == 'AnKan':
+                    corr_tiles = action.correspond_tiles
+                    assert len(corr_tiles) == 4
+                    self.t.make_selection_from_action_tile(base_action, corr_tiles)
+                    break
+
+        elif self.action_id2name[action_idx] == 'KaKan':
+            for action in aval_actions:
+                base_action = action.action
+                if base_action.name == 'KaKan':
+                    corr_tiles = action.correspond_tiles
+                    assert len(corr_tiles) == 1
+                    self.t.make_selection_from_action_tile(base_action, corr_tiles)
+                    break
+
+        elif self.action_id2name[action_idx] == 'Ron':
+            for action in aval_actions:
+                base_action = action.action
+                if base_action.name == 'Ron':
+                    corr_tiles = action.correspond_tiles
+                    self.t.make_selection_from_action_tile(base_action, corr_tiles)
+                    break
+
+        elif self.action_id2name[action_idx] == 'Tsumo':
+            for action in aval_actions:
+                base_action = action.action
+                if base_action.name == 'Tsumo':
+                    corr_tiles = action.correspond_tiles
+                    self.t.make_selection_from_action_tile(base_action, corr_tiles)
+                    break
+        
+        elif self.action_id2name[action_idx] == 'Kyushukyuhai':
+            for action in aval_actions:
+                base_action = action.action
+                if base_action.name == 'Kyushukyuhai':
+                    corr_tiles = action.correspond_tiles
+                    self.t.make_selection_from_action_tile(base_action, corr_tiles)
+                    break
+
+        elif self.action_id2name[action_idx] == 'Pass Naki':
+            for action in aval_actions:
+                base_action = action.action
+                if base_action.name == 'Pass':
+                    corr_tiles = action.correspond_tiles
+                    self.t.make_selection_from_action_tile(base_action, corr_tiles)
+                    break
+        
+        self._proceed()
+
 
     def get_observation_with_return(self, player_id):
         if not self.is_over():
@@ -425,3 +586,92 @@ class myMahjongEnv(MahjongEnv):
             'attention_mask': padding_mask,
             'legal_action_mask': legal_actions_mask
         }
+    
+
+    # TODO: 重写get_valid_actions
+    # 返回一个list，里面存放的是合法动作的索引
+    # 似乎可以自定义动作空间？
+    def get_valid_actions(self):
+        phase = self.t.get_phase()
+        valid_actions = []
+        if phase < 4:
+            aval_actions = self.t.get_self_actions()
+        elif phase < 16:
+            aval_actions = self.t.get_response_actions()
+        else:
+            raise ValueError(f"Invalid phase {phase}")
+        
+        aval_actions_str = [action.action.name for action in aval_actions]
+        selfAction_set = set(['Discard', 'AnKan', 'KaKan', 'Riichi', 'Tsumo', 'Kyushukyuhai'])
+        responseAction_set = set(['Chi', 'Pon', 'Kan', 'Ron', 'Pass', 'ChanAnKan', 'ChanKan'])
+# --------------------------处理立直相关的动作--------------------------------
+        # 如果没有pass立直
+        if self.pass_riichi == False:
+            if 'Riichi' in aval_actions_str:
+                return [self.action_encoding['player0']['riichi'], 
+                        self.action_encoding['player0']['pass_riichi']]
+
+        # 如果进入了立直第二阶段
+        if self.riichi_stage2 == True:
+            assert 'Riichi' in aval_actions_str
+            for action in aval_actions:
+                base_action = action.action
+                # 找到所有的立直动作
+                if base_action.name == 'Riichi':
+                    # 找到对应的舍牌
+                    corr_tiles = action.correspond_tiles
+                    assert len(corr_tiles) == 1
+                    valid_actions.append(corr_tiles[0].id//4)
+                    # 消除重复的动作
+                    return list(set(valid_actions))
+
+# --------------------------处理其他动作--------------------------------
+        if phase < 4:
+            for action in aval_actions:
+                base_action = action.action
+                corr_tiles = action.correspond_tiles
+                
+                assert base_action.name in selfAction_set, f"Invalid action {base_action.name}, should not be in selfAction_set"
+                
+                if base_action.name == 'Discard':
+                    assert len(corr_tiles) == 1, f"Invalid corr_tiles {corr_tiles}, should be 1 at {base_action.name}"
+                    valid_actions.append(corr_tiles[0].id//4)
+                if base_action.name == 'Ankan':
+                    valid_actions.append(self.action_encoding['player0']['ankan'])
+                if base_action.name == 'Kakan':
+                    valid_actions.append(self.action_encoding['player0']['kakan'])
+                if base_action.name == 'Tsumo':
+                    valid_actions.append(self.action_encoding['player0']['tsumo'])
+                if base_action.name == 'Kyushukyuhai':
+                    valid_actions.append(self.action_encoding['player0']['kyushukyuhai'])
+
+        elif phase < 16:
+            for action in aval_actions:
+                # 这里的action应该是SelfAction或者ResponseAction
+                base_action = action.action
+                corr_tiles = action.correspond_tiles
+                assert base_action.name in responseAction_set, f"Invalid action {base_action.name}, should not be in responseAction_set"
+
+                if base_action.name == 'Chi':
+                    assert len(corr_tiles) == 2
+                    # 比较corr_tiles中的两个tile和last_discard_tile的大小
+                    if corr_tiles[0].id//4 < self.last_discard_tile and corr_tiles[1].id//4 < self.last_discard_tile:
+                        valid_actions.append(self.action_encoding['player0']['chi_right']) # chi_right
+                    elif corr_tiles[0].id//4 > self.last_discard_tile and corr_tiles[1].id//4 > self.last_discard_tile:
+                        valid_actions.append(self.action_encoding['player0']['chi_left']) # chi_left
+                    else:
+                        valid_actions.append(self.action_encoding['player0']['chi_middle']) # chi_middle
+
+                elif base_action.name == 'Pon':
+                    valid_actions.append(self.action_encoding['player0']['pon'])
+
+                elif base_action.name == 'Kan':
+                    valid_actions.append(self.action_encoding['player0']['kan'])
+
+                elif base_action.name == 'Ron' or base_action.name == 'ChanKan' or base_action.name == 'ChanAnKan':
+                    valid_actions.append(self.action_encoding['player0']['ron'])    
+
+                elif base_action.name == 'Pass':
+                    valid_actions.append(self.action_encoding['player0']['pass_naki'])
+
+        return list(set(valid_actions))
