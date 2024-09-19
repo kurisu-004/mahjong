@@ -288,6 +288,26 @@ class myCollator(nn.Module):
         return return_data
 
 
+class inference_Collator(myCollator):
+    def __init__(self, batch_size=32, max_len=128, 
+                 tile_features_channel=35, 
+                 tile_features_height=4, 
+                 tile_features_width=9,
+                 device='cuda'):
+        super().__init__(batch_size, max_len, tile_features_channel, tile_features_height, tile_features_width, device)
+
+    def __call__(self, obs):
+        input = {
+            "tiles_features": torch.tensor(obs['tiles_features'], dtype=torch.float32).to(self.device),
+            "oya": torch.tensor(obs['info']['oya'], dtype=torch.float32).unsqueeze(0).to(self.device),
+            "riichi_sticks": torch.tensor(obs['info']['riichi_sticks'],dtype=torch.float32).unsqueeze(0).to(self.device),
+            "action_list": torch.tensor(obs['action_list'],dtype=torch.long).unsqueeze(0).to(self.device),
+            "attention_mask": torch.tensor(obs['attention_mask'],dtype=torch.long).unsqueeze(0).to(self.device),
+            "legal_action_mask": torch.tensor(obs['legal_action_mask'], dtype=bool).to(self.device),
+            }
+        return input
+
+
 class Policy_Network(nn.Module):
     def __init__(self, config, action_space=47):
         super(Policy_Network, self).__init__()

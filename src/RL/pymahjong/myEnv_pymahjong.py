@@ -455,6 +455,7 @@ class myMahjongEnv(MahjongEnv):
                     assert len(corr_tiles) == 2
                     if corr_tiles[0].id//4 > self.last_discard_tile and corr_tiles[1].id//4 > self.last_discard_tile:
                         self.t.make_selection_from_action_tile(base_action, corr_tiles)
+                        # print("chi_left")
                         break
 
         elif self.action_id2name[action_idx] == 'Chi_middle':
@@ -465,6 +466,7 @@ class myMahjongEnv(MahjongEnv):
                     assert len(corr_tiles) == 2
                     if corr_tiles[0].id//4 < self.last_discard_tile and corr_tiles[1].id//4 > self.last_discard_tile:
                         self.t.make_selection_from_action_tile(base_action, corr_tiles)
+                        # print("chi_middle")
                         break
 
         elif self.action_id2name[action_idx] == 'Chi_right':
@@ -475,6 +477,7 @@ class myMahjongEnv(MahjongEnv):
                     assert len(corr_tiles) == 2
                     if corr_tiles[0].id//4 < self.last_discard_tile and corr_tiles[1].id//4 < self.last_discard_tile:
                         self.t.make_selection_from_action_tile(base_action, corr_tiles)
+                        # print("chi_right")
                         break
 
         elif self.action_id2name[action_idx] == 'Pon':
@@ -588,7 +591,7 @@ class myMahjongEnv(MahjongEnv):
         }
     
 
-    # TODO: 重写get_valid_actions
+    # 重写get_valid_actions
     # 返回一个list，里面存放的是合法动作的索引
     # 似乎可以自定义动作空间？
     def get_valid_actions(self):
@@ -606,13 +609,12 @@ class myMahjongEnv(MahjongEnv):
         responseAction_set = set(['Chi', 'Pon', 'Kan', 'Ron', 'Pass', 'ChanAnKan', 'ChanKan'])
 # --------------------------处理立直相关的动作--------------------------------
         # 如果没有pass立直
-        if self.pass_riichi == False:
-            if 'Riichi' in aval_actions_str:
+        if self.pass_riichi == False and self.riichi_stage2 == False and 'Riichi' in aval_actions_str:
                 return [self.action_encoding['player0']['riichi'], 
                         self.action_encoding['player0']['pass_riichi']]
 
         # 如果进入了立直第二阶段
-        if self.riichi_stage2 == True:
+        elif self.riichi_stage2 == True:
             assert 'Riichi' in aval_actions_str
             for action in aval_actions:
                 base_action = action.action
@@ -623,7 +625,16 @@ class myMahjongEnv(MahjongEnv):
                     assert len(corr_tiles) == 1
                     valid_actions.append(corr_tiles[0].id//4)
                     # 消除重复的动作
-                    return list(set(valid_actions))
+            return list(set(valid_actions))
+        elif self.pass_riichi == True:
+            assert 'Riichi' in aval_actions_str
+            for action in aval_actions:
+                base_action = action.action
+                if base_action.name == 'Discard':
+                    corr_tiles = action.correspond_tiles
+                    assert len(corr_tiles) == 1
+                    valid_actions.append(corr_tiles[0].id//4)
+            return list(set(valid_actions))
 
 # --------------------------处理其他动作--------------------------------
         if phase < 4:
@@ -647,7 +658,6 @@ class myMahjongEnv(MahjongEnv):
 
         elif phase < 16:
             for action in aval_actions:
-                # 这里的action应该是SelfAction或者ResponseAction
                 base_action = action.action
                 corr_tiles = action.correspond_tiles
                 assert base_action.name in responseAction_set, f"Invalid action {base_action.name}, should not be in responseAction_set"
