@@ -57,6 +57,7 @@ class Tiles_CNN(nn.Module):
         self.resnet_list = nn.ModuleList([Rsidual_Block(hidden_channel, hidden_channel) for i in range(18)])
         self.flatten = nn.Flatten()
         self.fc1 = nn.Linear(hidden_channel*input_height*input_width, 512)
+        self.relu = nn.ReLU(inplace=True)
         self.fc2 = nn.Linear(512, 128)
         
     def forward(self, x):
@@ -67,6 +68,7 @@ class Tiles_CNN(nn.Module):
             x = resnet(x)
         x = self.flatten(x)
         x = self.fc1(x)
+        x = self.relu(x)
         x = self.fc2(x)
         return x
     
@@ -79,7 +81,7 @@ class pub_info_embedding(nn.Module):
         super(pub_info_embedding, self).__init__()
         self.oya_sticks_embedding = nn.Linear(2, 16, dtype=torch.float32)
         self.layernorm = nn.LayerNorm(2, dtype=torch.float32)
-        self.relu = nn.ReLU()
+        self.relu = nn.ReLU(inplace=True)
 
     def forward(self, oya, riichi_sticks):
         oya_riichi_sticks = torch.stack((oya, riichi_sticks), dim=1)
@@ -197,14 +199,47 @@ class pub_info_embedding(nn.Module):
         },
     }
 
+class RoPE(nn.Module):
+    def __init__(self, d_model, max_len):
+        super(RoPE, self).__init__()
+        self.d_model = d_model
+        self.max_len = max_len
+        
+        position = torch.arange(0, max_len, dtype=torch.float)
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-torch.log(torch.tensor(10000.0)) / d_model))
+        # print(position.shape, div_term.shape)
+        sinusoid_inp = torch.einsum('i,j->ij', position, div_term)
+        
+        self.sin = torch.sin(sinusoid_inp).unsqueeze(0)
+        self.cos = torch.cos(sinusoid_inp).unsqueeze(0)
+
+    def forward(self, x):
+        device = x.device
+
+        # x shape: (batch_size, seq_len, dim)
+        seq_len = x.size(1)
+        x1 = x[:, :, 0::2]
+        x2 = x[:, :, 1::2]
+
+        sin = self.sin[:, :seq_len, :].to(device)
+        cos = self.cos[:, :seq_len, :].to(device)
+        
+        x1_rot = x1 * cos - x2 * sin
+        x2_rot = x1 * sin + x2 * cos
+        
+        x_rot = torch.stack((x1_rot, x2_rot), dim=-1).reshape_as(x)
+        return x_rot
+    
 class action_GPT2(GPT2Model):
     def __init__(self, config, num_actions=189):
         super().__init__(config)
         self.embeded = nn.Embedding(num_actions, config.n_embd)
+        self.rope = RoPE(config.n_embd, config.n_positions)
         self.config = config
         
     def forward(self, action_list, attention_mask):
         action_list = self.embeded(action_list)
+        action_list = self.rope(action_list)
         outputs = super().forward(inputs_embeds=action_list, attention_mask=attention_mask)
         return outputs.last_hidden_state
 
@@ -303,30 +338,41 @@ class inference_Collator(myCollator):
             "riichi_sticks": torch.tensor(obs['info']['riichi_sticks'],dtype=torch.float32).unsqueeze(0).to(self.device),
             "action_list": torch.tensor(obs['action_list'],dtype=torch.long).unsqueeze(0).to(self.device),
             "attention_mask": torch.tensor(obs['attention_mask'],dtype=torch.long).unsqueeze(0).to(self.device),
-            "legal_action_mask": torch.tensor(obs['legal_action_mask'], dtype=bool).to(self.device),
+            "legal_action_mask": torch.tensor(obs['legal_action_mask'], dtype=bool).unsqueeze(0).to(self.device),
             }
         return input
 
+
+class MLP(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(MLP, self).__init__()
+        self.fc1 = nn.Linear(input_size, 128)
+        self.fc2 = nn.Linear(128, 128)
+        self.fc3 = nn.Linear(128, 128)
+        self.fc4 = nn.Linear(128, 128)
+        self.fc5 = nn.Linear(128, 128)
+        self.fc6 = nn.Linear(128, output_size)
+        self.relu = nn.ReLU(inplace=True)
+        self.mlp = nn.Sequential(self.fc1, self.relu, self.fc2, self.relu, self.fc3, self.relu, self.fc4, self.relu, self.fc5, self.relu, self.fc6)
+        
+    def forward(self, x):
+        x = self.mlp(x)
+        return x
 
 class Policy_Network(nn.Module):
     def __init__(self, config, action_space=47):
         super(Policy_Network, self).__init__()
         self.my_model = my_model(config)
-        self.fc1 = nn.Linear(128+16+config.n_embd, 128)
-        self.fcList = nn.ModuleList([nn.Linear(128, 128) for i in range(4)])
-        self.fc2 = nn.Linear(128, action_space)
+        self.layernorm = nn.LayerNorm(128 + 16 + config.n_embd, dtype=torch.float32)
+        self.mlp = MLP(128 + 16 + config.n_embd, action_space)
+        # self.relu = nn.ReLU(inplace=True)
         self.softmax = nn.Softmax(dim=1)
         
     def forward(self, action_list, self_action_mask, attention_mask, info, tiles_features, legal_action_mask, Q_values):
 
         state_representation = self.my_model(action_list, self_action_mask, attention_mask, info, tiles_features)
-        action_logits = self.fc1(state_representation)
-        action_logits = F.relu(action_logits)
-        for fc in self.fcList:
-            action_logits = fc(action_logits)
-            action_logits = F.relu(action_logits)
-        action_logits = self.fc2(action_logits)
-        # print(action_logits.shape)
+        state_representation = self.layernorm(state_representation)
+        action_logits = self.mlp(state_representation)
     
         # 将legal_action_mask中为0的位置的logits设置为负无穷
         action_logits[~legal_action_mask] = float('-inf')
@@ -340,29 +386,14 @@ class Policy_Network(nn.Module):
         }
     
     def inference(self, action_list, attention_mask, oya, riichi_sticks, tiles_features, legal_action_mask):
-        state_representation = self.my_model.inference(action_list, attention_mask, oya, riichi_sticks, tiles_features)
-        
-        action_logits = self.fc1(state_representation)
-        action_logits = F.relu(action_logits)
 
-        # print("action_logits")
-        # print(action_logits.shape)
-        # print(action_logits)
-        for fc in self.fcList:
-            action_logits = fc(action_logits)
-            action_logits = F.relu(action_logits)
-        action_logits = self.fc2(action_logits)
-        # print(action_logits.shape)
-        # print(action_logits)
-        # print("legal_action_mask:")
-        # print(legal_action_mask.shape)
-        # # return action_logits
-        legal_action_mask = legal_action_mask.unsqueeze(0)
+        state_representation = self.my_model.inference(action_list, attention_mask, oya, riichi_sticks, tiles_features)
+        state_representation = self.layernorm(state_representation)
+
+
+        action_logits = self.mlp(state_representation)
         action_logits[~legal_action_mask] = float('-inf')
         action_probs = self.softmax(action_logits)
-        # print(action_logits)
-        # # print(action_probs)
-        # # print(action_logits)
 
         return {
             'action_probs': action_probs,

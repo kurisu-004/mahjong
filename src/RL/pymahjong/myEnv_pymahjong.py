@@ -158,33 +158,34 @@ class myMahjongEnv(MahjongEnv):
     TILES_FEATURES_HEIGHT = 4
     TILES_FEATURES_WIDTH = 9
 
-
-
     def __init__(self):
         super().__init__()
         self.action_space = Discrete(self.SELF_ACTION_DIM)
         self.tiles_features_space = Box(low=0, high=1, shape=(self.TILES_FEATURES_CHANNEL, 
                                                               self.TILES_FEATURES_HEIGHT, 
                                                               self.TILES_FEATURES_WIDTH), dtype=bool)
-        self.scores_space = Box(low=-500000, high=500000, shape=(4,), dtype=np.int32)
+        # self.scores_space = Box(low=-500000, high=500000, shape=(4,), dtype=np.int32)
         self.oya_space = Discrete(4)
-        self.honba_riichi_sticks_space = Box(low=0, high=100, shape=(2,), dtype=np.int32)
+        self.riichi_sticks_space = Discrete(100)
+        # self.honba_riichi_sticks_space = Box(low=0, high=100, shape=(2,), dtype=np.int32)
+        
         self.info_space = Dict(
             {
-                'scores': self.scores_space,
+                # 'scores': self.scores_space,
                 'oya': self.oya_space,
-                'honba_riichi_sticks': self.honba_riichi_sticks_space,
+                'riichi_sticks': self.riichi_sticks_space,
             }
         )
-        self.recorder_action_space = Discrete(self.RECORDER_ACTION_DIM)
-        self.action_list_space = Sequence(self.action_space)
-        self.self_action_mask_space = Sequence(Discrete(2))
+        self.action_list_space = Box(low=0, high=self.RECORDER_ACTION_DIM, shape=(self.ACTIONS_MAX_LEN,), dtype=np.int32)
+        self.attention_mask_space = Box(low=0, high=1, shape=(self.ACTIONS_MAX_LEN,), dtype=bool)
+        self.legal_actions_mask_space = Box(low=0, high=1, shape=(self.SELF_ACTION_DIM,), dtype=bool)
         self.observation_space = Dict(
             {
                 'tiles_features': self.tiles_features_space,
                 'info': self.info_space,
                 'action_list': self.action_list_space,
-                'self_action_mask': self.self_action_mask_space
+                'attention_mask': self.attention_mask_space,
+                'legal_action_mask': self.legal_actions_mask_space
             }
         )
         self.action_record = [] # 以绝对位置记录动作
@@ -192,10 +193,11 @@ class myMahjongEnv(MahjongEnv):
         self.oya_record = [[], [], [], []]
         self.riichi_sticks_record = [[], [], [], []]
         self.legal_actions_mask_record = [[], [], [], []]
-        self.last_discard_tile = None
-        self.reset()
+        self.last_discard_tile = None   
         self.riichi_stage2 = False # 是否进入了立直第二阶段即
         self.pass_riichi = False # 是否pass了立直
+        self.reset()
+
 
     def _proceed(self):
         while not self.is_over():  # continue until game over or one player has choices
@@ -395,6 +397,15 @@ class myMahjongEnv(MahjongEnv):
 
         self._proceed()
 
+        obs = self.get_observation(self.get_curr_player_id())
+        termination = self.is_over()
+        if termination:
+            r = self.get_payoffs()
+        else:
+            r = [0, 0, 0, 0]
+
+        return obs, r, termination, False, {}
+
     def step(self, player_id: int, action_idx: int):
         tiles_features, oya = self._get_tiles_features(player_id)
         legal_actions = self._get_legal_actions_mask()
@@ -549,6 +560,15 @@ class myMahjongEnv(MahjongEnv):
                     break
         
         self._proceed()
+
+        obs = self.get_observation(self.get_curr_player_id())
+        termination = self.is_over()
+        if termination:
+            r = self.get_payoffs()
+        else:
+            r = [0, 0, 0, 0]
+
+        return obs, r, termination, False, {}
 
 
     def get_observation_with_return(self, player_id):
