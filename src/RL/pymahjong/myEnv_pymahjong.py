@@ -1,7 +1,7 @@
 import gymnasium as gym
 import numpy as np
 import warnings
-from gymnasium.spaces import Discrete, Box, Dict, Sequence
+from gymnasium.spaces import Discrete, Box, Dict, Sequence, MultiBinary
 from . import MahjongPyWrapper as pm
 from .env_pymahjong import MahjongEnv
 import re
@@ -177,8 +177,8 @@ class myMahjongEnv(MahjongEnv):
             }
         )
         self.action_list_space = Box(low=0, high=self.RECORDER_ACTION_DIM, shape=(self.ACTIONS_MAX_LEN,), dtype=np.int32)
-        self.attention_mask_space = Box(low=0, high=1, shape=(self.ACTIONS_MAX_LEN,), dtype=bool)
-        self.legal_actions_mask_space = Box(low=0, high=1, shape=(self.SELF_ACTION_DIM,), dtype=bool)
+        self.attention_mask_space = MultiBinary(self.ACTIONS_MAX_LEN)
+        self.legal_actions_mask_space = MultiBinary(self.SELF_ACTION_DIM)
         self.observation_space = Dict(
             {
                 'tiles_features': self.tiles_features_space,
@@ -200,6 +200,8 @@ class myMahjongEnv(MahjongEnv):
 
 
     def _proceed(self):
+        if self.is_over():
+            print("The game is over.")
         while not self.is_over():  # continue until game over or one player has choices
             phase = self.t.get_phase()
             if phase < 4:
@@ -400,13 +402,14 @@ class myMahjongEnv(MahjongEnv):
         obs = self.get_observation(self.get_curr_player_id())
         termination = self.is_over()
         if termination:
-            r = self.get_payoffs()
+            r = np.array(self.get_payoffs())
         else:
-            r = [0, 0, 0, 0]
+            r = np.array([0, 0, 0, 0])
 
-        return obs, r, termination, False, {}
+        return obs, {'curr_player': self.get_curr_player_id(), 'payoffs': r}
 
-    def step(self, player_id: int, action_idx: int):
+    def step(self, action_idx: int):
+        player_id = self.get_curr_player_id()
         tiles_features, oya = self._get_tiles_features(player_id)
         legal_actions = self._get_legal_actions_mask()
         self.legal_actions_mask_record[player_id].append(legal_actions)
@@ -561,14 +564,24 @@ class myMahjongEnv(MahjongEnv):
         
         self._proceed()
 
-        obs = self.get_observation(self.get_curr_player_id())
         termination = self.is_over()
-        if termination:
-            r = self.get_payoffs()
-        else:
-            r = [0, 0, 0, 0]
 
-        return obs, r, termination, False, {}
+        if termination:
+            curr_player = -1
+            r = np.array(self.get_payoffs())
+            obs = self.observation_space.sample()
+            obs_with_return = []
+            for i in range(4):
+                obs_with_return.append(self.get_observation_with_return(i))
+        else:
+            curr_player = self.get_curr_player_id()
+            r = np.array([0, 0, 0, 0])
+            obs = self.get_observation(self.get_curr_player_id())
+            obs_with_return = None
+
+
+        return obs, 0, termination, False, {'curr_player': curr_player, 'payoffs': r,
+                                            'obs_with_return': obs_with_return}
 
 
     def get_observation_with_return(self, player_id):
