@@ -215,6 +215,8 @@ PYBIND11_MODULE(MahjongPyWrapper, m)
 		.def_readonly("oya", &Table::oya)
 		.def_readonly("honba", &Table::honba)
 		.def_readonly("riichibo", &Table::kyoutaku)
+		.def_readwrite("seed", &Table::seed)
+		.def_readwrite("use_seed", &Table::use_seed)
 		
 		// 辅助函数们
 		.def("get_dora", &Table::get_dora)

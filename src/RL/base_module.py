@@ -84,7 +84,7 @@ class pub_info_embedding(nn.Module):
         self.relu = nn.ReLU(inplace=True)
 
     def forward(self, oya, riichi_sticks):
-        oya_riichi_sticks = torch.stack((oya, riichi_sticks), dim=1)
+        oya_riichi_sticks = torch.concat((oya, riichi_sticks), dim=1)
         oya_riichi_sticks = self.layernorm(oya_riichi_sticks)
         x = self.oya_sticks_embedding(oya_riichi_sticks)
         x = self.relu(x)
@@ -309,8 +309,8 @@ class myCollator(nn.Module):
         return_data = {
             'tiles_features': torch.cat(tiles_features, dim=0).to(self.device),
             'info': {
-                'oya': torch.cat(oya, dim=0).to(self.device),
-                'riichi_sticks': torch.cat(riichi_sticks, dim=0).to(self.device),
+                'oya': torch.cat(oya, dim=0).to(self.device).view(-1, 1),
+                'riichi_sticks': torch.cat(riichi_sticks, dim=0).to(self.device).view(-1, 1),
             },
             'action_list': torch.stack(action_list, dim=0).to(self.device),
             'attention_mask': torch.stack(attention_mask, dim=0).to(self.device),
@@ -318,7 +318,7 @@ class myCollator(nn.Module):
             'legal_action_mask': torch.cat(legal_action_mask, dim=0).to(self.device),
         }
         if is_train:
-            Q_values = [torch.tensor(feature['Q_values'], dtype=torch.float32).to(self.device) for feature in features]
+            Q_values = [torch.tensor(feature['Q_values']/1000, dtype=torch.float32).to(self.device) for feature in features]
             return_data['Q_values'] = torch.cat(Q_values, dim=0).to(self.device)
         return return_data
 
@@ -332,13 +332,20 @@ class inference_Collator(myCollator):
         super().__init__(batch_size, max_len, tile_features_channel, tile_features_height, tile_features_width, device)
 
     def __call__(self, obs):
+        tiles_features = torch.tensor(obs['tiles_features'], dtype=torch.float32).to(self.device).view(-1, self.tile_features_channel, self.tile_features_height, self.tile_features_width)
+        oya = torch.tensor(obs['info']['oya'], dtype=torch.float32).unsqueeze(0).to(self.device).view(-1, 1)
+        riichi_sticks = torch.tensor(obs['info']['riichi_sticks'],dtype=torch.float32).unsqueeze(0).to(self.device).view(-1, 1)
+        action_list = torch.tensor(obs['action_list'],dtype=torch.long).unsqueeze(0).to(self.device).view(-1, self.max_len)
+        attention_mask = torch.tensor(obs['attention_mask'],dtype=torch.long).unsqueeze(0).to(self.device).view(-1, self.max_len)
+        legal_action_mask = torch.tensor(obs['legal_action_mask'], dtype=bool).unsqueeze(0).to(self.device).view(-1, 47)
+
         input = {
-            "tiles_features": torch.tensor(obs['tiles_features'], dtype=torch.float32).to(self.device),
-            "oya": torch.tensor(obs['info']['oya'], dtype=torch.float32).unsqueeze(0).to(self.device),
-            "riichi_sticks": torch.tensor(obs['info']['riichi_sticks'],dtype=torch.float32).unsqueeze(0).to(self.device),
-            "action_list": torch.tensor(obs['action_list'],dtype=torch.long).unsqueeze(0).to(self.device),
-            "attention_mask": torch.tensor(obs['attention_mask'],dtype=torch.long).unsqueeze(0).to(self.device),
-            "legal_action_mask": torch.tensor(obs['legal_action_mask'], dtype=bool).unsqueeze(0).to(self.device),
+            "tiles_features": tiles_features,
+            "oya": oya,
+            "riichi_sticks": riichi_sticks,
+            "action_list": action_list,
+            "attention_mask": attention_mask,
+            "legal_action_mask": legal_action_mask,
             }
         return input
 

@@ -196,12 +196,13 @@ class myMahjongEnv(MahjongEnv):
         self.last_discard_tile = None   
         self.riichi_stage2 = False # 是否进入了立直第二阶段即
         self.pass_riichi = False # 是否pass了立直
-        self.reset()
+        # self.reset()
 
 
     def _proceed(self):
         if self.is_over():
-            print("The game is over.")
+            # print("The game is over.")
+            pass
         while not self.is_over():  # continue until game over or one player has choices
             phase = self.t.get_phase()
             if phase < 4:
@@ -382,8 +383,8 @@ class myMahjongEnv(MahjongEnv):
             assert game_wind in ["east", "south", "west", "north"]
 
         self.t = pm.Table()
-        if seed is not None:
-            self.t.seed = seed
+        self.t.use_seed = True
+        self.t.seed = np.random.randint(1000000000)
 
         self.t.game_init_with_metadata({"oya": str(oya), "wind": game_wind})
         self.riichi_stage2 = False
