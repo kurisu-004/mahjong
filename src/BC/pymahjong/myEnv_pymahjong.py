@@ -377,7 +377,7 @@ class myMahjongEnv(MahjongEnv):
         return legal_actions
 
 
-    def reset(self, oya=None, game_wind=None, seed=None):
+    def reset(self, oya=None, game_wind=None, seed=None, table=None):
         if oya is None:
             oya = np.random.randint(4)
         else:
@@ -388,11 +388,16 @@ class myMahjongEnv(MahjongEnv):
         else:
             assert game_wind in ["east", "south", "west", "north"]
 
-        self.t = pm.Table()
-        self.t.use_seed = True
-        self.t.seed = np.random.randint(1000000000)
+        if table is None:
+            self.t = pm.Table()
+            self.t.use_seed = True
+            self.t.seed = np.random.randint(1000000000)
 
-        self.t.game_init_with_metadata({"oya": str(oya), "wind": game_wind})
+            self.t.game_init_with_metadata({"oya": str(oya), "wind": game_wind})
+        else:
+            self.t = table
+
+        
         self.riichi_stage2 = False
         self.may_riichi_tile_id = None
 
