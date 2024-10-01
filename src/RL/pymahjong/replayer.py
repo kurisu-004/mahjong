@@ -3,8 +3,6 @@ import gzip
 import xml.etree.ElementTree as ET
 from pymahjong import MahjongPyWrapper as mp
 import numpy as np
-from collections import deque
-# from pymahjong.utils import *
 
 action_encoding = {
     # 0~48同时也是动作空间
@@ -253,29 +251,22 @@ class myReplayer:
         self.env = myMahjongEnv()
 
     def _open_file(self, path: str, file_name: str):
-        if file_name.endswith('.gz'):
-            try:
-                with gzip.open(path +'/'+ file_name, 'rt') as f:
-                    tree = ET.parse(f)
-            except Exception as e:
-                raise RuntimeError(e.__str__(), f"Cannot read paipu {path +'/'+ file_name}")
-        elif file_name.endswith('.log'):
-            try:
-                with open(path +'/'+ file_name, 'r') as f:
-                    tree = ET.parse(f)
-            except Exception as e:
-                raise RuntimeError(e.__str__(), f"Cannot read paipu {path +'/'+ file_name}")
-        else:
-            raise ValueError('Unknown file type')
-        
+        if not file_name.endswith('.gz'):
+            raise ValueError('File must be a .gz file')
+        try:
+            with gzip.open(path +'/'+ file_name, 'rt') as f:
+                tree = ET.parse(f)
+        except Exception as e:
+            raise RuntimeError(e.__str__(), f"Cannot read paipu {path +'/'+ file_name}")
         return tree
 
     # 返回每一局初始化信息和动作信息
     def _get_inst_and_action_list(self, tree):
         root = tree.getroot()
         return_data = {
+            'inst': None,
             'replayer': [],
-            'action_list': [],
+            'action_list': []
         }
 
         for child_no, child in enumerate(root):
@@ -288,13 +279,14 @@ class myReplayer:
                 seed = seed_str[len(prefix):]
                 inst = mp.TenhouShuffle.instance()
                 inst.init(seed)
+                return_data['inst'] = inst
 
             elif child.tag == "GO" or child.tag == "UN" or child.tag == "TAIKYOKU" or child.tag == "DORA":
                 pass
 
             elif child.tag == "INIT":
 
-                action_que = deque() # 用于存储每一局的动作
+                action_list = [] # 用于存储每一局的动作
                 # 开局时候的各家分数
                 scores_str = child.get("ten").split(',')
                 init_scores = [int(tmp) * 100 for tmp in scores_str]
@@ -324,7 +316,7 @@ class myReplayer:
                 player_id = int(child.get("who"))
                 if int(child.get("step")) == 1:
                     action = player_id * 47 + 41
-                    action_que.append(action)
+                    action_list.append(action)
 
             # discard
             elif child.tag[0] in ['D', 'E', 'F', 'G']:
@@ -338,7 +330,7 @@ class myReplayer:
                 if player_id == -1:
                     raise ValueError('Unknown player')
                 action = player_id * 47 + discarded_tile // 4
-                action_que.append(action)
+                action_list.append(action)
 
             elif child.tag == "N":
                 player_id = int(child.get("who"))
@@ -363,47 +355,42 @@ class myReplayer:
                 elif naru_type == "Min-Kan":
                     action = player_id * 47 + 39
 
-                action_que.append(action)
+                action_list.append(action)
             
             elif  child.tag == "BYE":
-                # print("掉线，跳过本局")
+                print("掉线，跳过本局")
                 return None
             
             elif child.tag == "AGARI":
                 if child_no + 1 < len(root) and root[child_no + 1].tag == "AGARI":
-                    # print("一炮多响，跳过本局")
-                    return None
+                    double_ron = True
                 else:
-                    player_id = int(child.get("who"))
-                    from_who = int(child.get("fromWho"))
-                    if player_id == from_who:
-                        action = player_id * 47 + 43
-                    else:
-                        action = player_id * 47 + 42
-                    action_que.append(action)
+                    double_ron = False
 
-                    return_data['action_list'].append(action_que)
-                    action_que = deque()
+                player_id = int(child.get("who"))
+                from_who = int(child.get("fromWho"))
+                if player_id == from_who:
+                    action = player_id * 47 + 43
+                else:
+                    action = player_id * 47 + 42
+                action_list.append(action)
 
-
+                if not double_ron:
+                    return_data['action_list'].append(action_list)
+                    action_list = []
             
             elif child.tag == "RYUUKYOKU":
                 if child.get("type") == "yao9":
                     # print(child.tag, child.attrib)
-                    action_que.append(44)
-                return_data['action_list'].append(action_que)
-                action_que = deque()
-
+                    action_list.append(44)
+                return_data['action_list'].append(action_list)
+                    
         return return_data
     
     def replay(self):
         success = 0
         failed = 0
-        failed_env = []
-        data = {
-            'obs': [],
-            'label': []
-        }
+        data = []
         for file_name in self.file_name_list:
             # print('Replaying', file_name)
             tree = self._open_file(self.path, file_name)
@@ -412,15 +399,12 @@ class myReplayer:
                 continue
             replayer = return_data['replayer']
             action_list = return_data['action_list']
-
-            for i in range(len(replayer))[:1]:
+            for i in range(len(replayer)):
                 # print('Replaying game', i)
                 obs, info = self.env.reset(table = replayer[i].table)
                 done = False
                 riichi_step1 = [False, False, False, False]
                 riichi_flag = [False, False, False, False] # 记录四家是否立直
-
-                label = [[], [], [], []]# 记录每一步的动作
                 for idx, action in enumerate(action_list[i]):
 
                     player_id = action // 47
@@ -436,12 +420,10 @@ class myReplayer:
                     while curr_player != player_id or action_type not in legal_action:
                         if 45 in legal_action:
                             obs, reward, done, _, info = self.env.step(45)
-                            label[curr_player].append(45)
                             curr_player = self.env.get_curr_player_id()
                             legal_action = self.env.get_valid_actions()
                         elif 46 in legal_action:
                             obs, reward, done, _, info = self.env.step(46)
-                            label[curr_player].append(46)
                             curr_player = self.env.get_curr_player_id()
                             legal_action = self.env.get_valid_actions()
                         else:
@@ -450,7 +432,6 @@ class myReplayer:
                             # for a in action_list[i]:
                             #     print(a, reversed_encoding[a])
                             # raise ValueError('No legal action')
-                            failed_env.append(self.env)
                             failed += 1
                             break
 
@@ -462,19 +443,16 @@ class myReplayer:
                             riichi_flag[player_id] = True
                             riichi_step1[player_id] = False
                         obs, reward, done, _, info = self.env.step(action_type)
-                        label[curr_player].append(action_type)
                         # print('Player:', player_id, 'Action:', action_type)
 
                     else:
                         # print('Player:', player_id, 'Action:', action_type)
                         # print(self.env.t.to_string())
-                    
                         break
                         # return self.env
 
                     if done:
-                        data['obs'].append(info['obs_with_return'])
-                        data['label'].append(label)
+                        data.append(info['obs_with_return'])
                         success += 1
 
-        return data, success, failed, failed_env
+        return data, success, failed

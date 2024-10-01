@@ -6,6 +6,7 @@ from . import MahjongPyWrapper as pm
 from .env_pymahjong import MahjongEnv
 import re
 from collections import Counter
+# from utils import *
 
 class myMahjongEnv(MahjongEnv):
     # 对动作进行编码，编码形式如下
@@ -214,6 +215,8 @@ class myMahjongEnv(MahjongEnv):
             if len(aval_actions) > 1:
                 return phase, aval_actions
             else:
+                if aval_actions[0].action.name == 'Discard':
+                    self.last_discard_tile = aval_actions[0].correspond_tiles[0].id//4
                 self.t.make_selection(0)
 
     # 这里的player_id是需要获取观察的玩家的id
@@ -400,6 +403,10 @@ class myMahjongEnv(MahjongEnv):
         
         self.riichi_stage2 = False
         self.may_riichi_tile_id = None
+        self.pass_riichi = False
+        self.last_discard_tile = None
+        self.riichi_sticks = 0
+
 
         self.game_count += 1
         self.action_record = []
@@ -655,8 +662,15 @@ class myMahjongEnv(MahjongEnv):
 # --------------------------处理立直相关的动作--------------------------------
         # 如果没有pass立直
         if self.pass_riichi == False and self.riichi_stage2 == False and 'Riichi' in aval_actions_str:
-                return [self.action_encoding['player0']['riichi'], 
+                av_action = [self.action_encoding['player0']['riichi'], 
                         self.action_encoding['player0']['pass_riichi']]
+                if 'AnKan' in aval_actions_str:
+                    av_action.append(self.action_encoding['player0']['ankan'])
+                if 'Tsumo' in aval_actions_str:
+                    av_action.append(self.action_encoding['player0']['tsumo'])
+                if 'Kyushukyuhai' in aval_actions_str:
+                    av_action.append(self.action_encoding['player0']['kyushukyuhai'])
+                return av_action
 
         # 如果进入了立直第二阶段
         elif self.riichi_stage2 == True:
@@ -679,6 +693,14 @@ class myMahjongEnv(MahjongEnv):
                     corr_tiles = action.correspond_tiles
                     assert len(corr_tiles) == 1
                     valid_actions.append(corr_tiles[0].id//4)
+                if base_action.name == 'AnKan':
+                    valid_actions.append(self.action_encoding['player0']['ankan'])
+                if base_action.name == 'KaKan':
+                    valid_actions.append(self.action_encoding['player0']['kakan'])
+                if base_action.name == 'Tsumo':
+                    valid_actions.append(self.action_encoding['player0']['tsumo'])
+                if base_action.name == 'Kyushukyuhai':
+                    valid_actions.append(self.action_encoding['player0']['kyushukyuhai'])
             return list(set(valid_actions))
 
 # --------------------------处理其他动作--------------------------------
@@ -692,9 +714,9 @@ class myMahjongEnv(MahjongEnv):
                 if base_action.name == 'Discard':
                     assert len(corr_tiles) == 1, f"Invalid corr_tiles {corr_tiles}, should be 1 at {base_action.name}"
                     valid_actions.append(corr_tiles[0].id//4)
-                if base_action.name == 'Ankan':
+                if base_action.name == 'AnKan':
                     valid_actions.append(self.action_encoding['player0']['ankan'])
-                if base_action.name == 'Kakan':
+                if base_action.name == 'KaKan':
                     valid_actions.append(self.action_encoding['player0']['kakan'])
                 if base_action.name == 'Tsumo':
                     valid_actions.append(self.action_encoding['player0']['tsumo'])
@@ -711,6 +733,9 @@ class myMahjongEnv(MahjongEnv):
                     assert len(corr_tiles) == 2
                     # 比较corr_tiles中的两个tile和last_discard_tile的大小
                     if corr_tiles[0].id//4 < self.last_discard_tile and corr_tiles[1].id//4 < self.last_discard_tile:
+                        # print("self.last_discard_tile", self.last_discard_tile)
+                        # print("corr_tiles", corr_tiles[0].id//4, corr_tiles[1].id//4)
+
                         valid_actions.append(self.action_encoding['player0']['chi_right']) # chi_right
                     elif corr_tiles[0].id//4 > self.last_discard_tile and corr_tiles[1].id//4 > self.last_discard_tile:
                         valid_actions.append(self.action_encoding['player0']['chi_left']) # chi_left

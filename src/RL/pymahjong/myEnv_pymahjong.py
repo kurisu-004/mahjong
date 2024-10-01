@@ -377,7 +377,7 @@ class myMahjongEnv(MahjongEnv):
         return legal_actions
 
 
-    def reset(self, oya=None, game_wind=None, seed=None):
+    def reset(self, oya=None, game_wind=None, seed=None, table=None):
         if oya is None:
             oya = np.random.randint(4)
         else:
@@ -388,13 +388,22 @@ class myMahjongEnv(MahjongEnv):
         else:
             assert game_wind in ["east", "south", "west", "north"]
 
-        self.t = pm.Table()
-        self.t.use_seed = True
-        self.t.seed = np.random.randint(1000000000)
+        if table is None:
+            self.t = pm.Table()
+            self.t.use_seed = True
+            self.t.seed = np.random.randint(1000000000)
 
-        self.t.game_init_with_metadata({"oya": str(oya), "wind": game_wind})
+            self.t.game_init_with_metadata({"oya": str(oya), "wind": game_wind})
+        else:
+            self.t = table
+
+        
         self.riichi_stage2 = False
         self.may_riichi_tile_id = None
+        self.pass_riichi = False
+        self.last_discard_tile = None
+        self.riichi_sticks = 0
+
 
         self.game_count += 1
         self.action_record = []
@@ -674,6 +683,14 @@ class myMahjongEnv(MahjongEnv):
                     corr_tiles = action.correspond_tiles
                     assert len(corr_tiles) == 1
                     valid_actions.append(corr_tiles[0].id//4)
+                if base_action.name == 'AnKan':
+                    valid_actions.append(self.action_encoding['player0']['ankan'])
+                if base_action.name == 'KaKan':
+                    valid_actions.append(self.action_encoding['player0']['kakan'])
+                if base_action.name == 'Tsumo':
+                    valid_actions.append(self.action_encoding['player0']['tsumo'])
+                if base_action.name == 'Kyushukyuhai':
+                    valid_actions.append(self.action_encoding['player0']['kyushukyuhai'])
             return list(set(valid_actions))
 
 # --------------------------处理其他动作--------------------------------
@@ -687,9 +704,9 @@ class myMahjongEnv(MahjongEnv):
                 if base_action.name == 'Discard':
                     assert len(corr_tiles) == 1, f"Invalid corr_tiles {corr_tiles}, should be 1 at {base_action.name}"
                     valid_actions.append(corr_tiles[0].id//4)
-                if base_action.name == 'Ankan':
+                if base_action.name == 'AnKan':
                     valid_actions.append(self.action_encoding['player0']['ankan'])
-                if base_action.name == 'Kakan':
+                if base_action.name == 'KaKan':
                     valid_actions.append(self.action_encoding['player0']['kakan'])
                 if base_action.name == 'Tsumo':
                     valid_actions.append(self.action_encoding['player0']['tsumo'])

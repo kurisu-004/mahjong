@@ -18,124 +18,135 @@ tile_map = {
     '1z': 30, '2z': 31, '3z': 32, '4z': 33, '5z': 34, '6z': 35, '7z': 36
 }
 
+# 对动作进行编码，编码形式如下
 action_encode = {
-    'draw': {
+    # 0~48同时也是动作空间
+    'player0': {
+        'discard': {
             **{
-                f'{i}{suit}': idx + suit_idx * 10
+                f'{i}{suit}': idx + suit_idx * 9
                 for suit_idx, suit in enumerate(['m', 'p', 's'])
-                for idx, i in enumerate(range(10))
+                for idx, i in enumerate(range(1, 10))
             },
             **{
-                f'{i}z': idx + 30
+                f'{i}z': idx + 27
                 for idx, i in enumerate(range(1, 8))
             },
         },
-    'discard': {
-        'player0': {
+        'chi_left': 34,
+        'chi_middle': 35,
+        'chi_right': 36,
+        'pon': 37,
+        'ankan': 38,
+        'kan': 39,
+        'kakan': 40,
+        'riichi': 41,
+        'ron': 42,
+        'tsumo': 43,
+        'kyushukyuhai': 44,
+        'pass_naki': 45,
+        'pass_riichi': 46,
+        },
+    'player1': {
+        'discard': {
             **{
-                f'{i}{suit}': idx + suit_idx * 10 + 37
+                f'{i}{suit}': idx + suit_idx * 9 + 47
                 for suit_idx, suit in enumerate(['m', 'p', 's'])
-                for idx, i in enumerate(range(10))
+                for idx, i in enumerate(range(1, 10))
             },
             **{
-                f'{i}z': idx + 30 + 37
+                f'{i}z': idx + 27 + 47
                 for idx, i in enumerate(range(1, 8))
             },
         },
-        'player1': {
+        'chi_left': 81,
+        'chi_middle': 82,
+        'chi_right': 83,
+        'pon': 84,
+        'ankan': 85,
+        'kan': 86,
+        'kakan': 87,
+        'riichi': 88,
+        'ron': 89,
+        'tsumo': 90,
+        'kyushukyuhai': 91,
+        'pass_naki': 92,
+        'pass_riichi': 93,
+    },
+    'player2': {
+        'discard': {
             **{
-                f'{i}{suit}': idx + suit_idx * 10 + 74
+                f'{i}{suit}': idx + suit_idx * 9 + 94
                 for suit_idx, suit in enumerate(['m', 'p', 's'])
-                for idx, i in enumerate(range(10))
+                for idx, i in enumerate(range(1, 10))
             },
             **{
-                f'{i}z': idx + 30 + 74
+                f'{i}z': idx + 27 + 94
                 for idx, i in enumerate(range(1, 8))
             },
         },
-        'player2': {
+        'chi_left': 128,
+        'chi_middle': 129,
+        'chi_right': 130,
+        'pon': 131,
+        'ankan': 132,
+        'kan': 133,
+        'kakan': 134,
+        'riichi': 135,
+        'ron': 136,
+        'tsumo': 137,
+        'kyushukyuhai': 138,
+        'pass_naki': 139,
+        'pass_riichi': 140,
+    },
+    'player3': {
+        'discard': {
             **{
-                f'{i}{suit}': idx + suit_idx * 10 + 111
+                f'{i}{suit}': idx + suit_idx * 9 + 141
                 for suit_idx, suit in enumerate(['m', 'p', 's'])
-                for idx, i in enumerate(range(10))
+                for idx, i in enumerate(range(1, 10))
             },
             **{
-                f'{i}z': idx + 30 + 111
+                f'{i}z': idx + 27 + 141
                 for idx, i in enumerate(range(1, 8))
             },
         },
-        'player3': {
-            **{
-                f'{i}{suit}': idx + suit_idx * 10 + 148
-                for suit_idx, suit in enumerate(['m', 'p', 's'])
-                for idx, i in enumerate(range(10))
-            },
-            **{
-                f'{i}z': idx + 30 + 148
-                for idx, i in enumerate(range(1, 8))
-            },
-        }
-        
+        'chi_left': 175,
+        'chi_middle': 176,
+        'chi_right': 177,
+        'pon': 178,
+        'ankan': 179,
+        'kan': 180,
+        'kakan': 181,
+        'riichi': 182,
+        'ron': 183,
+        'tsumo': 184,
+        'kyushukyuhai': 185,
+        'pass_naki': 186,
+        'pass_riichi': 187,
     },
-    'Chi':{
-        'player0': 185,
-        'player1': 186,
-        'player2': 187,
-        'player3': 188
-    },
-    'Pon':{
-        'player0': 189,
-        'player1': 190,
-        'player2': 191,
-        'player3': 192
-    },
-    'Min-Kan':{
-        'player0': 193,
-        'player1': 194,
-        'player2': 195,
-        'player3': 196
-    },
-    'An-Kan':{
-        'player0': 197,
-        'player1': 198,
-        'player2': 199,
-        'player3': 200
-    },
-    'Ka-Kan':{
-        'player0': 201,
-        'player1': 202,
-        'player2': 203,
-        'player3': 204
-    },
-    'riichi':{
-        'player0': 205,
-        'player1': 206,
-        'player2': 207,
-        'player3': 208
-    },
-    'ron':{
-        'player0': 209,
-        'player1': 210,
-        'player2': 211,
-        'player3': 212
-    },
-    'tsumo':{
-        'player0': 213,
-        'player1': 214,
-        'player2': 215,
-        'player3': 216
-    },
-    'kyushukyuhai':{
-        'player0': 217,
-        'player1': 218,
-        'player2': 219,
-        'player3': 220
-    },
-    'pass_for_naki': 221,
-    'pass_for_riichi': 222,
-    'ryuukyoku': 223
-    }
+}
 
+# 初始化反转后的字典
+reversed_action_encode = {}
+
+# 遍历原始字典并交换键值对
+for player, actions in action_encode.items():
+    for action, value in actions.items():
+        if action == 'discard':
+            # 对于 'discard'，需要进一步遍历具体的牌
+            for tile, idx in value.items():
+                reversed_action_encode[idx] = {
+                    'player': player,
+                    'action': 'discard',
+                    'tile': tile
+                }
+        else:
+            # 其他动作只需要玩家和动作类型
+            reversed_action_encode[value] = {
+                'player': player,
+                'action': action
+            }
 
 
 class myPaipuReplay(PaipuReplay):
@@ -198,8 +209,6 @@ class myPaipuReplay(PaipuReplay):
             pickle.dump(data, f)
 
         
-
-
     def _paipu_replay(self, path, paipu):
         if not paipu.endswith('gz'): 
             raise RuntimeError(f"Cannot read paipu {paipu}")
@@ -211,7 +220,6 @@ class myPaipuReplay(PaipuReplay):
         except Exception as e:
             raise RuntimeError(e.__str__(), f"Cannot read paipu {filename}")
         root = tree.getroot()        
-        self.log("解析牌谱为ElementTree成功！")
         replayer = None
         riichi_status = False
         after_kan = False

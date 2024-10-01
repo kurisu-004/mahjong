@@ -23,6 +23,124 @@ import numpy as np
 # ------------------剩余牌 视野中未出现的牌------------------
 # 30~34: 剩余牌
 
+# 对动作进行编码，编码形式如下
+action_encoding = {
+    # 0~48同时也是动作空间
+    'player0': {
+        'discard': {
+            **{
+                f'{i}{suit}': idx + suit_idx * 9
+                for suit_idx, suit in enumerate(['m', 'p', 's'])
+                for idx, i in enumerate(range(1, 10))
+            },
+            **{
+                f'{i}z': idx + 27
+                for idx, i in enumerate(range(1, 8))
+            },
+        },
+        'chi_left': 34,
+        'chi_middle': 35,
+        'chi_right': 36,
+        'pon': 37,
+        'ankan': 38,
+        'kan': 39,
+        'kakan': 40,
+        'riichi': 41,
+        'ron': 42,
+        'tsumo': 43,
+        'kyushukyuhai': 44,
+        'pass_naki': 45,
+        'pass_riichi': 46,
+        },
+    'player1': {
+        'discard': {
+            **{
+                f'{i}{suit}': idx + suit_idx * 9 + 47
+                for suit_idx, suit in enumerate(['m', 'p', 's'])
+                for idx, i in enumerate(range(1, 10))
+            },
+            **{
+                f'{i}z': idx + 27 + 47
+                for idx, i in enumerate(range(1, 8))
+            },
+        },
+        'chi_left': 81,
+        'chi_middle': 82,
+        'chi_right': 83,
+        'pon': 84,
+        'ankan': 85,
+        'kan': 86,
+        'kakan': 87,
+        'riichi': 88,
+        'ron': 89,
+        'tsumo': 90,
+        'kyushukyuhai': 91,
+        'pass_naki': 92,
+        'pass_riichi': 93,
+    },
+    'player2': {
+        'discard': {
+            **{
+                f'{i}{suit}': idx + suit_idx * 9 + 94
+                for suit_idx, suit in enumerate(['m', 'p', 's'])
+                for idx, i in enumerate(range(1, 10))
+            },
+            **{
+                f'{i}z': idx + 27 + 94
+                for idx, i in enumerate(range(1, 8))
+            },
+        },
+        'chi_left': 128,
+        'chi_middle': 129,
+        'chi_right': 130,
+        'pon': 131,
+        'ankan': 132,
+        'kan': 133,
+        'kakan': 134,
+        'riichi': 135,
+        'ron': 136,
+        'tsumo': 137,
+        'kyushukyuhai': 138,
+        'pass_naki': 139,
+        'pass_riichi': 140,
+    },
+    'player3': {
+        'discard': {
+            **{
+                f'{i}{suit}': idx + suit_idx * 9 + 141
+                for suit_idx, suit in enumerate(['m', 'p', 's'])
+                for idx, i in enumerate(range(1, 10))
+            },
+            **{
+                f'{i}z': idx + 27 + 141
+                for idx, i in enumerate(range(1, 8))
+            },
+        },
+        'chi_left': 175,
+        'chi_middle': 176,
+        'chi_right': 177,
+        'pon': 178,
+        'ankan': 179,
+        'kan': 180,
+        'kakan': 181,
+        'riichi': 182,
+        'ron': 183,
+        'tsumo': 184,
+        'kyushukyuhai': 185,
+        'pass_naki': 186,
+        'pass_riichi': 187,
+    },
+}
+
+reversed_encoding = {}
+
+for player, actions in action_encoding.items():
+    for action, value in actions.items():
+        if action == 'discard':
+            for card, code in value.items():
+                reversed_encoding[code] = (player, action, card)
+        else:
+            reversed_encoding[value] = (player, action)
 
 
 class Rsidual_Block(nn.Module):
@@ -77,6 +195,7 @@ class Tiles_CNN(nn.Module):
 # 环境仅提供了单局的模拟，没有提供多局的模拟
 # 因此有用的信息只有oya，riichi_sticks
 # 输入形状为(batch, seq_len, 2)
+# TODO: 加入更多的信息
 class pub_info_embedding(nn.Module):
     def __init__(self):
         super(pub_info_embedding, self).__init__()
@@ -90,115 +209,6 @@ class pub_info_embedding(nn.Module):
         x = self.oya_sticks_embedding(oya_riichi_sticks)
         x = self.relu(x)
         return x
-    
-# 对动作进行编码，编码形式如下
-    action_encoding = {
-        # 0~48同时也是动作空间
-        'player0': {
-            'discard': {
-                **{
-                    f'{i}{suit}': idx + suit_idx * 9
-                    for suit_idx, suit in enumerate(['m', 'p', 's'])
-                    for idx, i in enumerate(range(1, 10))
-                },
-                **{
-                    f'{i}z': idx + 27
-                    for idx, i in enumerate(range(1, 8))
-                },
-            },
-            'chi_left': 34,
-            'chi_middle': 35,
-            'chi_right': 36,
-            'pon': 37,
-            'ankan': 38,
-            'kan': 39,
-            'kakan': 40,
-            'riichi': 41,
-            'ron': 42,
-            'tsumo': 43,
-            'kyushukyuhai': 44,
-            'pass_naki': 45,
-            'pass_riichi': 46,
-            },
-        'player1': {
-            'discard': {
-                **{
-                    f'{i}{suit}': idx + suit_idx * 9 + 47
-                    for suit_idx, suit in enumerate(['m', 'p', 's'])
-                    for idx, i in enumerate(range(1, 10))
-                },
-                **{
-                    f'{i}z': idx + 27 + 47
-                    for idx, i in enumerate(range(1, 8))
-                },
-            },
-            'chi_left': 81,
-            'chi_middle': 82,
-            'chi_right': 83,
-            'pon': 84,
-            'ankan': 85,
-            'kan': 86,
-            'kakan': 87,
-            'riichi': 88,
-            'ron': 89,
-            'tsumo': 90,
-            'kyushukyuhai': 91,
-            'pass_naki': 92,
-            'pass_riichi': 93,
-        },
-        'player2': {
-            'discard': {
-                **{
-                    f'{i}{suit}': idx + suit_idx * 9 + 94
-                    for suit_idx, suit in enumerate(['m', 'p', 's'])
-                    for idx, i in enumerate(range(1, 10))
-                },
-                **{
-                    f'{i}z': idx + 27 + 94
-                    for idx, i in enumerate(range(1, 8))
-                },
-            },
-            'chi_left': 128,
-            'chi_middle': 129,
-            'chi_right': 130,
-            'pon': 131,
-            'ankan': 132,
-            'kan': 133,
-            'kakan': 134,
-            'riichi': 135,
-            'ron': 136,
-            'tsumo': 137,
-            'kyushukyuhai': 138,
-            'pass_naki': 139,
-            'pass_riichi': 140,
-        },
-        'player3': {
-            'discard': {
-                **{
-                    f'{i}{suit}': idx + suit_idx * 9 + 141
-                    for suit_idx, suit in enumerate(['m', 'p', 's'])
-                    for idx, i in enumerate(range(1, 10))
-                },
-                **{
-                    f'{i}z': idx + 27 + 141
-                    for idx, i in enumerate(range(1, 8))
-                },
-            },
-            'chi_left': 175,
-            'chi_middle': 176,
-            'chi_right': 177,
-            'pon': 178,
-            'ankan': 179,
-            'kan': 180,
-            'kakan': 181,
-            'riichi': 182,
-            'ron': 183,
-            'tsumo': 184,
-            'kyushukyuhai': 185,
-            'pass_naki': 186,
-            'pass_riichi': 187,
-        },
-    }
 
 class RoPE(nn.Module):
     def __init__(self, d_model, max_len):
@@ -423,6 +433,24 @@ class inference_Collator(myCollator):
             }
         return input
 
+class label_Collator(nn.Module):
+    def __init__(self, device='cuda'):
+        self.device = device
+
+    def __call__(self, labels):
+        augmented_label = []
+        for traj in labels:
+            augmented_label1 = []
+            augmented_label2 = []
+            for label in traj:
+                if label < 27:
+                    augmented_label1.append((label + 9) % 27)
+                    augmented_label2.append((label + 18) % 27)
+                else:
+                    augmented_label1.append(label)
+                    augmented_label2.append(label)
+            augmented_label += traj + augmented_label1 + augmented_label2
+        return torch.tensor(np.array(augmented_label)).to(self.device)
 
 class MLP(nn.Module):
     def __init__(self, input_size, output_size):
@@ -448,6 +476,7 @@ class Policy_Network(nn.Module):
         self.mlp = MLP(128 + 16 + config.n_embd, action_space)
         # self.relu = nn.ReLU(inplace=True)
         self.softmax = nn.Softmax(dim=1)
+
         
     def forward(self, action_list, self_action_mask, attention_mask, info, tiles_features, legal_action_mask, Q_values):
 
@@ -458,6 +487,8 @@ class Policy_Network(nn.Module):
         # 将legal_action_mask中为0的位置的logits设置为负无穷
         action_logits[~legal_action_mask] = float('-inf')
         action_probs = self.softmax(action_logits)
+        
+
         loss = self.compute_loss(Q_values, action_probs)
 
         return {
@@ -486,3 +517,14 @@ class Policy_Network(nn.Module):
         log_probs = torch.log(action_probs[torch.arange(action_probs.shape[0]), max_action_indices])
         loss = -torch.sum(log_probs * Q)
         return loss
+
+class BC_loss(nn.Module):
+    def __init__(self, label, action_probs):
+        self.label = label
+        device = action_probs.device
+        self.label = self.label.to(device)
+        self.action_probs = action_probs
+        self.loss = nn.CrossEntropyLoss()
+
+    def forward(self):
+        return self.loss(self.action_probs, self.label)
