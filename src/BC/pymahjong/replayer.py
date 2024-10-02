@@ -246,235 +246,231 @@ def decodem(naru_tiles_int, naru_player_id):
 
     return side_tiles_added, hand_tiles_removed, naru_type, opened
 
-class myReplayer:
-    def __init__(self, path: str, file_name_list: list):
-        self.path = path
-        self.file_name_list = file_name_list
-        self.env = myMahjongEnv()
 
-    def _open_file(self, path: str, file_name: str):
-        if file_name.endswith('.gz'):
+
+def open_file(path: str, file_name: str):
+    if file_name.endswith('.gz'):
+        try:
+            with gzip.open(path +'/'+ file_name, 'rt') as f:
+                tree = ET.parse(f)
+        except Exception as e:
+            raise RuntimeError(e.__str__(), f"Cannot read paipu {path +'/'+ file_name}")
+    elif file_name.endswith('.log'):
+        try:
+            with open(path +'/'+ file_name, 'r') as f:
+                tree = ET.parse(f)
+        except Exception as e:
+            raise RuntimeError(e.__str__(), f"Cannot read paipu {path +'/'+ file_name}")
+    else:
+        raise ValueError('Unknown file type')
+    
+    return tree
+
+# 返回每一局初始化信息和动作信息
+def get_inst_and_action_list(tree):
+    root = tree.getroot()
+    return_data = {
+        'replayer': [],
+        'action_list': [],
+    }
+
+    for child_no, child in enumerate(root):
+        if child.tag == "SHUFFLE":
+            seed_str = child.get("seed")
+            prefix = 'mt19937ar-sha512-n288-base64,'
+            if not seed_str.startswith(prefix):
+                self.log('Bad seed string')
+                continue
+            seed = seed_str[len(prefix):]
+            inst = mp.TenhouShuffle.instance()
+            inst.init(seed)
+
+        elif child.tag == "GO" or child.tag == "UN" or child.tag == "TAIKYOKU" or child.tag == "DORA":
+            pass
+
+        elif child.tag == "INIT":
+
+            action_que = deque() # 用于存储每一局的动作
+            # 开局时候的各家分数
+            scores_str = child.get("ten").split(',')
+            init_scores = [int(tmp) * 100 for tmp in scores_str]
+
+            # Oya ID
+            oya_id = int(child.get("oya"))
+
+            # 什么局
+            game_order = int(child.get("seed").split(",")[0])
+
+            # 本场和立直棒
+            honba = int(child.get("seed").split(",")[1])
+            riichi_sticks = int(child.get("seed").split(",")[2])
+
+            # 骰子数字
+            dice_numbers = [int(child.get("seed").split(",")[3]) + 1, int(child.get("seed").split(",")[4]) + 1]
+
+            # 牌山
+            yama = inst.generate_yama()
+
+            # 利用PaiPuReplayer进行重放
+            replayer = mp.PaipuReplayer()
+            replayer.init(yama, init_scores, riichi_sticks, honba, game_order // 4, oya_id)
+            return_data['replayer'].append(replayer)
+
+        elif child.tag == "REACH":
+            player_id = int(child.get("who"))
+            if int(child.get("step")) == 1:
+                action = player_id * 47 + 41
+                action_que.append(action)
+
+        # discard
+        elif child.tag[0] in ['D', 'E', 'F', 'G']:
+            player_id = "DEFG".find(child.tag[0])
             try:
-                with gzip.open(path +'/'+ file_name, 'rt') as f:
-                    tree = ET.parse(f)
-            except Exception as e:
-                raise RuntimeError(e.__str__(), f"Cannot read paipu {path +'/'+ file_name}")
-        elif file_name.endswith('.log'):
-            try:
-                with open(path +'/'+ file_name, 'r') as f:
-                    tree = ET.parse(f)
-            except Exception as e:
-                raise RuntimeError(e.__str__(), f"Cannot read paipu {path +'/'+ file_name}")
-        else:
-            raise ValueError('Unknown file type')
+                discarded_tile = int(child.tag[1:])
+            except:
+                print(child.tag)
+
+            # 从action_encode中找到对应的动作
+            if player_id == -1:
+                raise ValueError('Unknown player')
+            action = player_id * 47 + discarded_tile // 4
+            action_que.append(action)
+
+        elif child.tag == "N":
+            player_id = int(child.get("who"))
+            naru_tiles_int = int(child.get("m"))
+            side_tiles_added_by_naru, hand_tiles_removed_by_naru, naru_type, opened = decodem(
+                naru_tiles_int, player_id)
+
+            naru_type_set = {"Chi", "Pon", "Ka-Kan", "An-Kan", "Min-Kan"}
+            if naru_type not in naru_type_set:
+                raise ValueError('Unknown naru type')
+            if naru_type == "Chi":
+                for idx, tile in enumerate(side_tiles_added_by_naru):
+                    if tile[1] == 1:
+                        action = player_id * 47 + 34 + idx
+                    
+            elif naru_type == "Pon":
+                action = player_id * 47 + 37
+            elif naru_type == "Ka-Kan":
+                action = player_id * 47 + 40
+            elif naru_type == "An-Kan":
+                action = player_id * 47 + 38
+            elif naru_type == "Min-Kan":
+                action = player_id * 47 + 39
+
+            action_que.append(action)
         
-        return tree
-
-    # 返回每一局初始化信息和动作信息
-    def _get_inst_and_action_list(self, tree):
-        root = tree.getroot()
-        return_data = {
-            'replayer': [],
-            'action_list': [],
-        }
-
-        for child_no, child in enumerate(root):
-            if child.tag == "SHUFFLE":
-                seed_str = child.get("seed")
-                prefix = 'mt19937ar-sha512-n288-base64,'
-                if not seed_str.startswith(prefix):
-                    self.log('Bad seed string')
-                    continue
-                seed = seed_str[len(prefix):]
-                inst = mp.TenhouShuffle.instance()
-                inst.init(seed)
-
-            elif child.tag == "GO" or child.tag == "UN" or child.tag == "TAIKYOKU" or child.tag == "DORA":
-                pass
-
-            elif child.tag == "INIT":
-
-                action_que = deque() # 用于存储每一局的动作
-                # 开局时候的各家分数
-                scores_str = child.get("ten").split(',')
-                init_scores = [int(tmp) * 100 for tmp in scores_str]
-
-                # Oya ID
-                oya_id = int(child.get("oya"))
-
-                # 什么局
-                game_order = int(child.get("seed").split(",")[0])
-
-                # 本场和立直棒
-                honba = int(child.get("seed").split(",")[1])
-                riichi_sticks = int(child.get("seed").split(",")[2])
-
-                # 骰子数字
-                dice_numbers = [int(child.get("seed").split(",")[3]) + 1, int(child.get("seed").split(",")[4]) + 1]
-
-                # 牌山
-                yama = inst.generate_yama()
-
-                # 利用PaiPuReplayer进行重放
-                replayer = mp.PaipuReplayer()
-                replayer.init(yama, init_scores, riichi_sticks, honba, game_order // 4, oya_id)
-                return_data['replayer'].append(replayer)
-
-            elif child.tag == "REACH":
-                player_id = int(child.get("who"))
-                if int(child.get("step")) == 1:
-                    action = player_id * 47 + 41
-                    action_que.append(action)
-
-            # discard
-            elif child.tag[0] in ['D', 'E', 'F', 'G']:
-                player_id = "DEFG".find(child.tag[0])
-                try:
-                    discarded_tile = int(child.tag[1:])
-                except:
-                    print(child.tag)
-
-                # 从action_encode中找到对应的动作
-                if player_id == -1:
-                    raise ValueError('Unknown player')
-                action = player_id * 47 + discarded_tile // 4
-                action_que.append(action)
-
-            elif child.tag == "N":
-                player_id = int(child.get("who"))
-                naru_tiles_int = int(child.get("m"))
-                side_tiles_added_by_naru, hand_tiles_removed_by_naru, naru_type, opened = decodem(
-                    naru_tiles_int, player_id)
-
-                naru_type_set = {"Chi", "Pon", "Ka-Kan", "An-Kan", "Min-Kan"}
-                if naru_type not in naru_type_set:
-                    raise ValueError('Unknown naru type')
-                if naru_type == "Chi":
-                    for idx, tile in enumerate(side_tiles_added_by_naru):
-                        if tile[1] == 1:
-                            action = player_id * 47 + 34 + idx
-                        
-                elif naru_type == "Pon":
-                    action = player_id * 47 + 37
-                elif naru_type == "Ka-Kan":
-                    action = player_id * 47 + 40
-                elif naru_type == "An-Kan":
-                    action = player_id * 47 + 38
-                elif naru_type == "Min-Kan":
-                    action = player_id * 47 + 39
-
-                action_que.append(action)
-            
-            elif  child.tag == "BYE":
-                # print("掉线，跳过本局")
+        elif  child.tag == "BYE":
+            # print("掉线，跳过本局")
+            return None
+        
+        elif child.tag == "AGARI":
+            if child_no + 1 < len(root) and root[child_no + 1].tag == "AGARI":
+                # print("一炮多响，跳过本局")
                 return None
-            
-            elif child.tag == "AGARI":
-                if child_no + 1 < len(root) and root[child_no + 1].tag == "AGARI":
-                    # print("一炮多响，跳过本局")
-                    return None
+            else:
+                player_id = int(child.get("who"))
+                from_who = int(child.get("fromWho"))
+                if player_id == from_who:
+                    action = player_id * 47 + 43
                 else:
-                    player_id = int(child.get("who"))
-                    from_who = int(child.get("fromWho"))
-                    if player_id == from_who:
-                        action = player_id * 47 + 43
-                    else:
-                        action = player_id * 47 + 42
-                    action_que.append(action)
+                    action = player_id * 47 + 42
+                action_que.append(action)
 
-                    return_data['action_list'].append(action_que)
-                    action_que = deque()
-
-
-            
-            elif child.tag == "RYUUKYOKU":
-                if child.get("type") == "yao9":
-                    # print(child.tag, child.attrib)
-                    action_que.append(44)
                 return_data['action_list'].append(action_que)
                 action_que = deque()
 
-        return return_data
+
+        
+        elif child.tag == "RYUUKYOKU":
+            if child.get("type") == "yao9":
+                # print(child.tag, child.attrib)
+                action_que.append(44)
+            return_data['action_list'].append(action_que)
+            action_que = deque()
+
+    return return_data
     
-    def replay(self):
-        success = 0
-        failed = 0
-        failed_env = []
-        data = {
-            'obs': [],
-            'label': []
-        }
-        for file_name in self.file_name_list:
-            # print('Replaying', file_name)
-            tree = self._open_file(self.path, file_name)
-            return_data = self._get_inst_and_action_list(tree)
-            if return_data is None:
-                continue
-            replayer = return_data['replayer']
-            action_list = return_data['action_list']
-
-            for i in range(len(replayer))[:1]:
-                # print('Replaying game', i)
-                obs, info = self.env.reset(table = replayer[i].table)
-                done = False
-                riichi_step1 = [False, False, False, False]
-                riichi_flag = [False, False, False, False] # 记录四家是否立直
-
-                label = [[], [], [], []]# 记录每一步的动作
-                for idx, action in enumerate(action_list[i]):
-
-                    player_id = action // 47
-                    action_type = action % 47
-
-                    if action_type < 34 and riichi_flag[player_id] == True:
-                        continue
-
-                    curr_player = self.env.get_curr_player_id()
-                    legal_action = self.env.get_valid_actions()
+def replay(path, file_name):
+    # for file_name in file_name_list:
+    label = [[], [], [], []]
+    if True:
+        tree = open_file(path=path, file_name=file_name)
+        return_data = get_inst_and_action_list(tree)
+        if return_data is None:
+            return None
 
 
-                    while curr_player != player_id or action_type not in legal_action:
-                        if 45 in legal_action:
-                            obs, reward, done, _, info = self.env.step(45)
-                            label[curr_player].append(45)
-                            curr_player = self.env.get_curr_player_id()
-                            legal_action = self.env.get_valid_actions()
-                        elif 46 in legal_action:
-                            obs, reward, done, _, info = self.env.step(46)
-                            label[curr_player].append(46)
-                            curr_player = self.env.get_curr_player_id()
-                            legal_action = self.env.get_valid_actions()
-                        else:
-                            # print('action_type:', action_type, 'legal_action:', legal_action)
-                            # print('player_id:', player_id, 'curr_player:', curr_player)
-                            # for a in action_list[i]:
-                            #     print(a, reversed_encoding[a])
-                            # raise ValueError('No legal action')
-                            failed_env.append(self.env)
-                            failed += 1
+        # for kyoku in range(len(return_data['replayer'])):
+        if True:
+            kyoku = 0
+            queue = return_data['action_list'][kyoku].copy()
+            env = myMahjongEnv()
+            obs, info = env.reset(table=return_data['replayer'][kyoku].table)
+
+            done = False
+            while not done:
+                # if queue[0] == 5 + 47 * 2:
+                #     return env, queue
+
+                is_riichi = [player.riichi for player in env.t.players]
+                if len(queue) > 0:
+
+                    while is_riichi[queue[0]//47] and queue[0]%47 < 34:
+                        # 已立直玩家的舍牌动作会进入到这个循环
+                        # 如果这个舍牌动作的同时还有其他的可执行动作，则不能跳过这个舍牌动作
+                        curr_player = env.get_curr_player_id()
+                        legal_actions = env.get_valid_actions()
+                        if queue[0] % 47 in legal_actions and len(legal_actions) > 1 and curr_player == queue[0]//47:
                             break
+                        queue.popleft()
+                        if len(queue) == 0:
+                            return {'success': False}
 
-                    # 判断动作是否合法
-                    if action_type in legal_action and player_id == curr_player:
-                        if action_type == 41:
-                            riichi_step1[player_id] = True
-                        if riichi_step1[player_id] == True and action_type < 34:
-                            riichi_flag[player_id] = True
-                            riichi_step1[player_id] = False
-                        obs, reward, done, _, info = self.env.step(action_type)
-                        label[curr_player].append(action_type)
-                        # print('Player:', player_id, 'Action:', action_type)
-
+                    action = queue[0]
+                curr_player = env.get_curr_player_id()
+                legal_actions = env.get_valid_actions()
+                action_idx = action % 47
+                player_idx = action // 47
+                if action_idx == 44: # 九种九牌
+                    player_idx = curr_player
+                if curr_player == player_idx and action_idx in legal_actions:
+                    obs, reward, done, _, info = env.step(action_idx=action_idx)
+                    label[curr_player].append(action_idx)
+                    # print(f'{reversed_encoding[action]}')
+                    if len(queue) > 0:
+                        queue.popleft()
                     else:
-                        # print('Player:', player_id, 'Action:', action_type)
-                        # print(self.env.t.to_string())
+                        print(f'file_name {file_name} kyoku {kyoku} failed')
+                        print(f'player {player_idx} action {reversed_encoding[action]} is invalid')
+                        print(f'curr_player {curr_player} legal_actions {legal_actions}')
+                        return {'success': False}
+                elif 45 in legal_actions:
+                    obs, reward, done, _, info = env.step(action_idx=45)
+                    label[curr_player].append(45)
+                    # print(f'player {curr_player} pass_naki')
+
+                elif 46 in legal_actions:
+                    obs, reward, done, _, info = env.step(action_idx=46)
+                    label[curr_player].append(46)
+                    # print(f'player {curr_player} pass_riichi')
                     
-                        break
-                        # return self.env
+                else:
+                    print(f'file_name {file_name} kyoku {kyoku} failed')
+                    print(f'player {player_idx} action {reversed_encoding[action]} is invalid')
+                    print(f'curr_player {curr_player} legal_actions {legal_actions}')
+                    return {'success': False}
+                    
+            # print(f'file_name {file_name} kyoku {kyoku} success')
+    return {'data' :info['obs_with_return'], 'success': True, 'label': label}
 
-                    if done:
-                        data['obs'].append(info['obs_with_return'])
-                        data['label'].append(label)
-                        success += 1
+def worker(input, output):
+    for func, args in iter(input.get, 'STOP'):
+        result = func(*args)
+        # if result is not None:
+        output.put(result)
 
-        return data, success, failed, failed_env
+def calculate(func, args):
+    result = func(*args)
+    return result

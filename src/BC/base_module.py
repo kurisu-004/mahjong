@@ -394,7 +394,7 @@ class myCollator(nn.Module):
     def aug_legal_action_mask(self, legal_action_mask):
         augmented_legal_action_mask = []
         for mask in legal_action_mask:
-            mask = torch.tensor(mask)
+            mask = torch.tensor(mask, dtype=bool)
             # 这里mask有可能是空的，即玩家根本没有行动
             if mask.shape[0] == 0:
                 augmented_legal_action_mask.append(torch.cat((mask, mask, mask), dim=0))
